@@ -1,0 +1,16 @@
+#====== ignore build files =========
+
+#==== Git ======
+.git/
+.git
+.gitignore
+
+#==== log =====
+*.log
+
+#==== ENV ====
+.env.example
+.env
+
+#=== doc ====
+doc/

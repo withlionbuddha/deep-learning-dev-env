@@ -1,0 +1,121 @@
+FROM python:3.10-slim-bookworm
+
+# -----------------------------------
+# 기본 환경 변수
+# -----------------------------------
+ENV DEBIAN_FRONTEND=noninteractive
+
+ENV HOME=/home/dev
+ENV SHELL=/bin/bash
+
+ENV PATH=/home/dev/.local/bin:$PATH
+ENV XDG_CACHE_HOME=/home/dev/.cache
+
+# -----------------------------------
+# 시스템 패키지 설치
+# -----------------------------------
+RUN apt-get update && apt-get install -y \
+    sudo \
+    curl \
+    wget \
+    vim \
+    nano \
+    tini \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    pkg-config \
+    ca-certificates \
+    openssh-client \
+    iputils-ping \
+    net-tools \
+    procps \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python3-dev \
+    && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------
+# 일반 사용자 생성
+# -----------------------------------
+RUN useradd -m -s /bin/bash dev \
+ && echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# -----------------------------------
+# 작업 디렉토리 생성
+# -----------------------------------
+RUN mkdir -p /home/workspace \
+ && chown -R dev:dev /home/workspace
+
+# -----------------------------------
+# 사용자 전환
+# -----------------------------------
+USER dev
+
+WORKDIR /home/workspace
+
+# -----------------------------------
+# pip 최신화
+# -----------------------------------
+RUN python -m pip install --user --upgrade \
+    pip \
+    setuptools \
+    wheel
+
+# -----------------------------------
+# NVIDIA CUDA용 TensorFlow 설치
+# TensorFlow GPU 사용 경로
+# -----------------------------------
+RUN pip install --user --no-cache-dir \
+    "tensorflow[and-cuda]"
+
+# -----------------------------------
+# NVIDIA CUDA용 PyTorch 설치
+# CUDA 12.4 wheel 사용
+# -----------------------------------
+RUN pip install --user --no-cache-dir \
+    torch \
+    torchvision \
+    torchaudio \
+    --index-url https://download.pytorch.org/whl/cu124
+
+# -----------------------------------
+# Python 패키지 설치
+# -----------------------------------
+RUN pip install --user --no-cache-dir \
+    notebook \
+    jupyterlab \
+    ipywidgets \
+    numpy \
+    pandas \
+    matplotlib \
+    scikit-learn \
+    tensorflow
+
+# -----------------------------------
+# Jupyter 기본 설정 디렉토리 생성
+# -----------------------------------
+RUN mkdir -p /home/dev/.jupyter
+
+# -----------------------------------
+# 포트 오픈
+# -----------------------------------
+EXPOSE 8892
+
+# -----------------------------------
+# tini init process
+# -----------------------------------
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# -----------------------------------
+# 기본 실행
+# -----------------------------------
+CMD ["jupyter", "lab", \
+     "--ip=0.0.0.0", \
+     "--port=8892", \
+     "--no-browser", \
+     "--ServerApp.token=", \
+     "--ServerApp.allow_origin=*"]

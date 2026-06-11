@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  intel-pytorch-xpu-dev:
+    profiles: ["pytorch-xpu"]
+    container_name: intel-pytorch-xpu-dev
+    ports:
+      - "8890:8890"
+    build:
+        context: .
+        dockerfile: Dockerfile.intel-pytorch-xpu
+    user: root
+    volumes:
+      - type: bind
+        source: ${SOURCE_PATH}
+        target: /home/workspace/${PROEJCT_NAME}
+      - type: bind
+        source: ${DRIVE_PATH}
+        target: /home/drive
+        read_only: true
+      - type : bind
+        source: /usr/lib/wsl
+        target: /usr/lib/wsl
+        read_only: true
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LD_LIBRARY_PATH: "/usr/lib/wsl/lib"
+    working_dir: /home/workspace
+    devices:
+      - /dev/dxg:/dev/dxg
+    restart: unless-stopped

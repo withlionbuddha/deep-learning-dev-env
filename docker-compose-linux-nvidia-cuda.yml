@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  linux-nvidia-cuda-dev:
+    profiles: ["linux-nvidia-cuda"]
+    container_name:  linux-nvidia-cuda-dev
+    ports:
+      - "8892:8892"
+    build:
+        context: .
+        dockerfile: Dockerfile.intel-nvidia-cuda
+    user: root
+    volumes:
+      - type: bind
+        source: ${SOURCE_PATH}
+        target: /home/workspace/${PROEJCT_NAME}
+      - type: bind
+        source: ${DRIVE_PATH}
+        target: /home/drive
+        read_only: true
+    working_dir: /home/workspace
+    gpus: all
+    restart: unless-stopped

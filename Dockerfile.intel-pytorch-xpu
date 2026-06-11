@@ -1,0 +1,116 @@
+# Intel GPU 학습/추론용
+# Intel GPU용 PyTorch XPU 실험 환경
+# 
+FROM python:3.10-slim-bookworm
+
+# -----------------------------------
+# 기본 환경 변수
+# -----------------------------------
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+ENV HOME=/home/dev
+ENV SHELL=/bin/bash
+
+ENV PATH=/home/dev/.local/bin:$PATH
+ENV XDG_CACHE_HOME=/home/dev/.cache
+
+# -----------------------------------
+# 시스템 패키지 설치
+# -----------------------------------
+RUN apt-get update && apt-get install -y \
+    sudo \
+    curl \
+    wget \
+    vim \
+    nano \
+    tini \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    pkg-config \
+    ca-certificates \
+    openssh-client \
+    iputils-ping \
+    net-tools \
+    procps \
+ && rm -rf /var/lib/apt/lists/*
+
+
+# -----------------------------------
+# 일반 사용자 생성
+# -----------------------------------
+RUN useradd -m -s /bin/bash dev \
+ && echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# -----------------------------------
+# 작업 디렉토리 생성
+# -----------------------------------
+RUN mkdir -p /home/workspace \
+ && chown -R dev:dev /home/workspace
+
+# -----------------------------------
+# 사용자 전환
+# -----------------------------------
+USER dev
+
+WORKDIR /home/workspace
+
+# -----------------------------------
+# pip 최신화
+# -----------------------------------
+RUN python -m pip install --user --upgrade \
+    pip \
+    setuptools \
+    wheel
+
+# -----------------------------------
+# Intel GPU용 PyTorch XPU 설치
+# -----------------------------------
+RUN pip install --user --no-cache-dir \
+    torch \
+    torchvision \
+    torchaudio \
+    --index-url https://download.pytorch.org/whl/xpu
+
+# -----------------------------------
+# Python 패키지 설치
+# Jupyter 및 데이터 분석/딥러닝 실습 기본 패키지
+# -----------------------------------
+RUN pip install --user --no-cache-dir \
+    notebook \
+    jupyterlab \
+    ipywidgets \
+    numpy \
+    pandas \
+    matplotlib \
+    scikit-learn \
+    ipykernel 
+
+
+
+# -----------------------------------
+# Jupyter 기본 설정 디렉토리 생성
+# -----------------------------------
+RUN mkdir -p /home/dev/.jupyter
+
+# -----------------------------------
+# Jupyter 포트 오픈
+# -----------------------------------
+EXPOSE 8890
+
+# -----------------------------------
+# tini init process
+# -----------------------------------
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# -----------------------------------
+# 기본 실행
+# -----------------------------------
+CMD ["jupyter", "lab", \
+     "--ip=0.0.0.0", \
+     "--port=8890", \
+     "--no-browser", \
+     "--ServerApp.token=", \
+     "--ServerApp.allow_origin=*"]
