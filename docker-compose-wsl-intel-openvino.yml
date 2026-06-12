@@ -13,7 +13,7 @@ services:
     volumes:
       - type: bind
         source: ${SOURCE_PATH}
-        target: /home/workspace/${PROEJCT_NAME}
+        target: /home/workspace/${PROJECT_NAME}
       - type: bind
         source: ${DRIVE_PATH}
         target: /home/drive

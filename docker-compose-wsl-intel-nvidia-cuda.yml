@@ -13,7 +13,7 @@ services:
     volumes:
       - type: bind
         source: ${SOURCE_PATH}
-        target: /home/workspace/${PROEJCT_NAME}
+        target: /home/workspace/${PROJECT_NAME}
       - type: bind
         source: ${DRIVE_PATH}
         target: /home/drive
@@ -22,10 +22,16 @@ services:
         source: /usr/lib/wsl
         target: /usr/lib/wsl
         read_only: true
+    working_dir: /home/workspace
     environment:
       PYTHONUNBUFFERED: "1"
-      LD_LIBRARY_PATH: "/usr/lib/wsl/lib"
-    working_dir: /home/workspace
-    devices:
-      - /dev/dxg:/dev/dxg
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     restart: unless-stopped    

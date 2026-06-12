@@ -32,10 +32,6 @@ RUN apt-get update && apt-get install -y \
     iputils-ping \
     net-tools \
     procps \
-    python3 \
-    python3-pip \
-    python3-venv \
-    python3-dev \
     libgl1 \
     libglib2.0-0 \
  && rm -rf /var/lib/apt/lists/*
@@ -109,7 +105,7 @@ RUN python -m pip install --user --upgrade \
 # Intel TensorFlow XPU 설치
 # Intel Extension for TensorFlow는 stock TensorFlow 2.15.x 계열과 맞춰 사용
 # -----------------------------------
-RUN pip install --user --no-cache-dir \
+RUN python -m pip install --user --no-cache-dir \
     tensorflow==2.15.1 \
     "intel-extension-for-tensorflow[xpu]"
 
@@ -117,7 +113,7 @@ RUN pip install --user --no-cache-dir \
 # Python 패키지 설치
 # Jupyter 및 데이터 분석/딥러닝 실습 기본 패키지
 # -----------------------------------
-RUN pip install --user --no-cache-dir \
+RUN python -m pip install --user --no-cache-dir \
     notebook \
     jupyterlab \
     ipywidgets \
@@ -128,6 +124,7 @@ RUN pip install --user --no-cache-dir \
     intel-extension-for-tensorflow \
     ipykernel \
     wget
+
 
 # -----------------------------------
 # Jupyter 기본 설정 디렉토리 생성

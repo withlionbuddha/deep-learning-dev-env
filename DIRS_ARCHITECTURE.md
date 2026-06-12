@@ -1,15 +1,22 @@
 DEBIAN-GPU-JUPYTER-ENV(build Context)/
 ├── .devcontainer/
 ├── drive/
+├── license/
 ├── .dockerignore
 ├── .env
 ├── .env.example
 ├── .gitignore
 ├── .DIRS_ARCHITECTURE.md
-├── docker-compose-intel-i7.yml
-├── docker-compose-nvidia.yml
-├── Dockerfile.intel-i7
-├── Dockerfile.nvidia
+├── docker-compose-linux-nvidia-cuda.yml
+├── docker-compose-wsl-intel-nvidia-cuda.yml
+├── docker-compose-wsl-intel-openvino.yml
+├── docker-compose-wsl-intel-pytorch-xpu.yml
+├── docker-compose-wsl-intel-tensorflow-xpu.yml
+├── Dockerfile.intel-nvidia-cuda
+├── Dockerfile.intel-openvino
+├── Dockerfile.intel-pytorch-xpu
+├── Dockerfile.intel-tensorflow-xpu
+└── README.md
 └── ${PROEJCT_NAME}/
 
 
@@ -25,7 +32,7 @@ Host(Windows)
 
 Container Runtime Context
  ├── filesystem
- │     ├── /home/workspace/${PROEJCT_NAME}
+ │     ├── /home/workspace/${PROJECT_NAME}
  │     │      ↳ host source bind mount
  │     │
  │     └── /home/drive
