@@ -3,9 +3,8 @@ version: "3.9"
 services:
   intel-pytorch-xpu-dev:
     profiles: ["pytorch-xpu"]
-    container_name: intel-pytorch-xpu-dev
     ports:
-      - "8890:8890"
+      - "${PYTORCH_XPU_HOST_PORT}:8888"
     build:
         context: .
         dockerfile: Dockerfile.intel-pytorch-xpu
