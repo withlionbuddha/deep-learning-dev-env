@@ -4,7 +4,7 @@ services:
   intel-nvidia-cuda-dev:
     profiles: ["wsl-nvidia-cuda"]
     ports:
-      - "${NVIDIA_CUDA_HOST_PORT}:8888"
+      - "${WSL_NVIDIA_CUDA_HOST_PORT}:8888"
     build:
         context: .
         dockerfile: Dockerfile.intel-nvidia-cuda
