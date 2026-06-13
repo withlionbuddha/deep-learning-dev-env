@@ -670,8 +670,91 @@ wsl --shutdown
 
 ---
 
+## 22. wsl + intel xpu에서 numpy를 위한 설정.
 
-## 22. 참고
+```
+### 설정 목적
+
+NumPy의 모든 연산이 멀티스레드로 실행되는 것은 아니지만, 행렬 곱셈, 선형대수 연산, 일부 Pandas/Scikit-learn 연산은 내부적으로 OpenBLAS, Intel oneMKL, OpenMP, NumExpr 같은 수치 연산 라이브러리를 사용할 수 있다.
+
+스레드 수를 제한하는 목적은 다음과 같다.
+
+* 과도한 CPU 점유 방지
+* Docker Desktop, VS Code, Jupyter Notebook 동시 실행 시 시스템 응답성 유지
+* 노트북 CPU의 발열 및 전력 제한으로 인한 성능 저하 완화
+* OpenBLAS/MKL/NumExpr의 중첩 병렬화로 인한 비효율 감소
+* 실습 환경에서 재현 가능한 실행 성능 확보
+
+```
+
+### 각 환경 변수 의미
+
+| 환경 변수                  | 의미                              |
+| ---------------------- | ------------------------------- |
+| `OMP_NUM_THREADS`      | OpenMP 기반 병렬 연산에서 사용할 최대 스레드 수  |
+| `OPENBLAS_NUM_THREADS` | OpenBLAS가 사용할 최대 스레드 수          |
+| `MKL_NUM_THREADS`      | Intel oneMKL이 사용할 최대 스레드 수      |
+| `NUMEXPR_NUM_THREADS`  | NumExpr가 배열 수식 계산에 사용할 최대 스레드 수 |
+
+### 권장값
+
+Name                                 NumberOfCores  NumberOfLogicalProcessors
+12th Gen Intel(R) Core(TM) i7-1260P  12             16
+
+```
+WSL CPU 할당 설정
+Windows의 다음 위치에 .wslconfig 파일을 생성한다.
+C:\Users\사용자이름\.wslconfig
+
+[wsl2]
+processors=6
+memory=8GB
+swap=2GB
+
+설정 후 WSL을 재시작한다.
+wsl --shutdown
+이 설정은 WSL 전체가 사용할 수 있는 CPU와 메모리 상한을 정한다.
+```
+
+```
+docker-compose의 environment 설정.
+12th Gen Intel(R) Core(TM) i7-1260P의 경우, 처음에는 `4`를 권장하고, 대형 행렬 연산이 많고 발열 문제가 없다면 `6` 으로 올린다.
+
+```docker-compose-intel-*-xpu.yml
+
+    environment:
+      OMP_NUM_THREADS: "4"
+      OPENBLAS_NUM_THREADS: "4"
+      MKL_NUM_THREADS: "4"
+      NUMEXPR_NUM_THREADS: "4"
+```
+
+단, 논리 프로세서 수가 충분하더라도 스레드 수를 무조건 높이는 것이 항상 빠른 것은 아니다. 스레드가 많아지면 컨텍스트 전환, 메모리 대역폭 병목, 발열, 전력 제한이 발생할 수 있다.
+
+### 패키지 설치 예시
+
+스레드 설정 확인을 위해 `threadpoolctl`을 함께 설치한다.
+
+```dockerfile
+RUN python -m pip install --user --no-cache-dir \
+    threadpoolctl
+```
+### 실행 로그에서 기대 출력
+
+
+확인해야 할 항목은 다음과 같다.
+
+* NumPy가 OpenBLAS 기반인지 MKL 기반인지
+* 실제 적용된 `num_threads` 값
+* Jupyter 커널 재시작 후에도 환경 변수가 유지되는지
+
+### 주의사항
+
+`pip install numpy`로 설치된 NumPy가 OpenBLAS를 사용하는지, MKL을 사용하는지는 이미지와 플랫폼에 따라 달라질 수 있다. 따라서 Dockerfile 설정 후 `np.show_config()`와 `threadpool_info()`로 실제 백엔드를 확인해야 한다.
+
+이 설정은 NumPy의 연산 알고리즘을 변경하는 것이 아니라, 내부 병렬 연산에서 사용할 CPU 스레드 수를 제한하여 실행 환경에 맞게 성능을 안정화하는 설정이다.
+
+## 맺음말
 
 이 저장소는 운영 배포용 이미지가 아니라 학습, 실험, 개발 환경 재현을 위한 Dev Container 구성입니다.
 

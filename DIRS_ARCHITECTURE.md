@@ -1,4 +1,4 @@
-DEBIAN-GPU-JUPYTER-ENV(build Context)/
+DEEP-LEARNING-ENV(build Context)/
 ├── .devcontainer/
 ├── drive/
 ├── license/
@@ -12,10 +12,12 @@ DEBIAN-GPU-JUPYTER-ENV(build Context)/
 ├── docker-compose-wsl-intel-openvino.yml
 ├── docker-compose-wsl-intel-pytorch-xpu.yml
 ├── docker-compose-wsl-intel-tensorflow-xpu.yml
+├── docker-compose-wsl-intel-xpu.yml
 ├── Dockerfile.intel-nvidia-cuda
 ├── Dockerfile.intel-openvino
 ├── Dockerfile.intel-pytorch-xpu
 ├── Dockerfile.intel-tensorflow-xpu
+├── Dockerfile.intel-xpu
 └── README.md
 └── ${PROEJCT_NAME}/
 
@@ -26,17 +28,23 @@ Host(Windows)
  │        └──── bind mount
  │
  └── ${DRIVE_PATH}
-          │
-          └──── readonly bind mount
+ |        │
+ |        └──── readonly bind mount
+ |
+ └── ${AI_COUMPUTE_BENCHMARK_PATH}
+ |        │
+ |        └──── bind mount
 
 
 Container Runtime Context
  ├── filesystem
  │     ├── /home/workspace/${PROJECT_NAME}
- │     │      ↳ host source bind mount
+ │     │      ↳ host source_path bind mount
  │     │
  │     └── /home/drive
- │            ↳ readonly host drive bind mount
+ │            ↳ readonly host drive_path bind mount
+ │     ├── /home/workspace/ai-compute-benchmark
+ │            ↳ host ai_compute_benchmark_path bind mount
  │
  ├── cwd = /home/workspace
  ├── process = jupyter/python/bash

@@ -1,0 +1,142 @@
+
+FROM python:3.10-slim-bookworm 
+# -----------------------------------
+# 기본 환경 변수
+# -----------------------------------
+ENV DEBIAN_FRONTEND=noninteractive
+
+ENV HOME=/home/dev
+ENV SHELL=/bin/bash
+
+ENV PATH=/home/dev/.local/bin:$PATH
+ENV XDG_CACHE_HOME=/home/dev/.cache
+
+# -----------------------------------
+# 시스템 패키지 설치
+# -----------------------------------
+RUN apt-get update && apt-get install -y \
+    sudo \
+    curl \
+    wget \
+    vim \
+    nano \
+    tini \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    pkg-config \
+    ca-certificates \
+    openssh-client \
+    iputils-ping \
+    net-tools \
+    procps \
+    libgl1 \
+    libglib2.0-0 \
+ && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------
+# Intel GPU 확인용 패키지 설치
+# clinfo는 GPU/OpenCL 확인용으로만 사용
+# -----------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    clinfo \
+    gpg \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------
+# Intel oneAPI runtime 설치
+# -----------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    gpg \
+    ca-certificates \
+    && mkdir -p /usr/share/keyrings \
+    && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+    | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
+    > /etc/apt/sources.list.d/oneAPI.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        intel-oneapi-runtime-compilers \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------
+# libimf.so 경로 등록
+# -----------------------------------
+RUN find /opt/intel/oneapi -name "libimf.so*" -print \
+    && find /opt/intel/oneapi -name "libimf.so*" -exec dirname {} \; \
+    | sort -u > /etc/ld.so.conf.d/intel-oneapi.conf \
+    && ldconfig
+
+# -----------------------------------
+# 일반 사용자 생성
+# -----------------------------------
+RUN useradd -m -s /bin/bash dev \
+ && echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# -----------------------------------
+# 작업 디렉토리 생성
+# -----------------------------------
+RUN mkdir -p /home/workspace \
+ && chown -R dev:dev /home/workspace
+
+# -----------------------------------
+# 사용자 전환
+# -----------------------------------
+USER dev
+
+WORKDIR /home/workspace
+
+# -----------------------------------
+# pip 최신화
+# -----------------------------------
+RUN python -m pip install --user --upgrade \
+    pip \
+    setuptools \
+    wheel
+
+# -----------------------------------
+# Python 패키지 설치
+# Jupyter 및 데이터 분석/딥러닝 실습 기본 패키지
+# -----------------------------------
+RUN python -m pip install --user --no-cache-dir \
+    notebook \
+    jupyterlab \
+    ipywidgets \
+    numpy \
+    pandas \
+    matplotlib \
+    scikit-learn \
+    intel-extension-for-tensorflow \
+    ipykernel \
+    wget \
+    threadpoolctl
+
+
+# -----------------------------------
+# Jupyter 기본 설정 디렉토리 생성
+# -----------------------------------
+RUN mkdir -p /home/dev/.jupyter
+
+# -----------------------------------
+# Jupyter 포트 오픈
+# -----------------------------------
+EXPOSE 8888
+
+# -----------------------------------
+# tini init process
+# -----------------------------------
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# -----------------------------------
+# 기본 실행
+# -----------------------------------
+CMD ["jupyter", "lab", \
+     "--ip=0.0.0.0", \
+     "--port=8888", \
+     "--no-browser", \
+     "--ServerApp.token=", \
+     "--ServerApp.allow_origin=*"]
