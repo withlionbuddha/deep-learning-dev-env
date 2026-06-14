@@ -780,6 +780,8 @@ RUN python -m pip install --user --no-cache-dir \
 이 설정은 NumPy의 연산 알고리즘을 변경하는 것이 아니라, 내부 병렬 연산에서 사용할 CPU 스레드 수를 제한하여 실행 환경에 맞게 성능을 안정화하는 설정이다.
 
 ## 23. 연산 라이브러리 성능 측정.
+
+````
 AI_COMPUTE_BENCHMARK_PATH 환경변수를 추가하여 AI compute environments (including Docker, WSL, Intel XPU, OpenBLAS, oneMKL, TensorFlow, PyTorch, and NVIDIA CUDA, Numpy)의 성능을 측정할수 있습니다.
 
 .env 에 환경변수를 추가
@@ -787,6 +789,7 @@ AI_COMPUTE_BENCHMARK_PATH 환경변수를 추가하여 AI compute environments (
 
 github source repository 
    git@github.com:withlionbuddha/ai-compute-benchmark.git
+```
    
 ## 맺음말
 
