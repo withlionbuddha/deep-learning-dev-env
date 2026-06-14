@@ -3,12 +3,12 @@
 > Docker, WSL 2, VS Code Dev Containers 기반의 딥러닝 개발 환경 저장소입니다.  
 > TensorFlow XPU, PyTorch XPU, OpenVINO, NVIDIA CUDA, Numpy XPU 환경을 목적별로 분리하여 관리합니다.
 
-![Docker](https://img.shields.io/badge/Docker-Dev%20Container-blue)
-![Python](https://img.shields.io/badge/Python-3.10-yellow)
-![Jupyter](https://img.shields.io/badge/Jupyter-Notebook%20%7C%20Lab-orange)
-![WSL2](https://img.shields.io/badge/WSL-2-green)
-![CUDA](https://img.shields.io/badge/NVIDIA-CUDA-76B900)
-![Intel](https://img.shields.io/badge/Intel-XPU-0071C5)
+[![Docker](https://img.shields.io/badge/Docker-Dev%20Container-blue)](https://www.docker.com/)
+[![Python](https://img.shields.io/badge/Python-3.10-yellow)](https://www.python.org/)
+[![Jupyter](https://img.shields.io/badge/Jupyter-Notebook%20%7C%20Lab-orange)](https://jupyter.org/)
+[![WSL2](https://img.shields.io/badge/WSL-2-green)](https://learn.microsoft.com/windows/wsl/)
+[![CUDA](https://img.shields.io/badge/NVIDIA-CUDA-76B900)](https://developer.nvidia.com/cuda-toolkit)
+[![Intel](https://img.shields.io/badge/Intel-XPU-0071C5)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/overview.html)
 
 ---
 ## 0. 라이선스(License)
