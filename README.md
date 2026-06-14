@@ -102,7 +102,7 @@ Current repo    : git@github.com:withlionbuddha/deep-learning-dev-env.git
 | WSL Intel OpenVINO | `docker-compose-wsl-intel-openvino.yml` | `intel-openvino-dev` | `openvino` | `8891` | `8888` | `Dockerfile.intel-openvino` |
 | WSL NVIDIA CUDA | `docker-compose-wsl-intel-nvidia-cuda.yml` | `intel-nvidia-cuda-dev` | `wsl-nvidia-cuda` | `8892` | `8888` | `Dockerfile.intel-nvidia-cuda` |
 | Linux NVIDIA CUDA | `docker-compose-linux-nvidia-cuda.yml` | `linux-nvidia-cuda-dev` | `linux-nvidia-cuda` | `8893` | `8888` | `Dockerfile.intel-nvidia-cuda` |
-| WSL INTEL Numpy XPU | `docker-compose-wsl-intel-xpu.yml` | `intel-xpu-dev` | `wsl-xpu` | `8894` | `8888` | `Dockerfile.intel-xpu` |
+| WSL Intel Numpy XPU | `docker-compose-wsl-intel-xpu.yml` | `intel-xpu-dev` | `wsl-xpu` | `8894` | `8888` | `Dockerfile.intel-xpu` |
 
 ---
 
