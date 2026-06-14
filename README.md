@@ -781,7 +781,7 @@ RUN python -m pip install --user --no-cache-dir \
 
 ## 23. 연산 라이브러리 성능 측정.
 
-````
+```
 AI_COMPUTE_BENCHMARK_PATH 환경변수를 추가하여 AI compute environments (including Docker, WSL, Intel XPU, OpenBLAS, oneMKL, TensorFlow, PyTorch, and NVIDIA CUDA, Numpy)의 성능을 측정할수 있습니다.
 
 .env 에 환경변수를 추가
@@ -790,7 +790,7 @@ AI_COMPUTE_BENCHMARK_PATH 환경변수를 추가하여 AI compute environments (
 github source repository 
    git@github.com:withlionbuddha/ai-compute-benchmark.git
 ```
-   
+
 ## 맺음말
 
 이 저장소는 운영 배포용 이미지가 아니라 학습, 실험, 개발 환경 재현을 위한 Dev Container 구성입니다.
