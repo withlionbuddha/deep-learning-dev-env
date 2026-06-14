@@ -1,7 +1,7 @@
 # Deep Learning Dev Environment
 
 > Docker, WSL 2, VS Code Dev Containers 기반의 딥러닝 개발 환경 저장소입니다.  
-> TensorFlow XPU, PyTorch XPU, OpenVINO, NVIDIA CUDA 환경을 목적별로 분리하여 관리합니다.
+> TensorFlow XPU, PyTorch XPU, OpenVINO, NVIDIA CUDA, Numpy XPU 환경을 목적별로 분리하여 관리합니다.
 
 ![Docker](https://img.shields.io/badge/Docker-Dev%20Container-blue)
 ![Python](https://img.shields.io/badge/Python-3.10-yellow)
