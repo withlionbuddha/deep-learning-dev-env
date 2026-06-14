@@ -120,6 +120,8 @@ deep-learning-dev-env/
 │  ├─ wsl-intel-nvidia-cuda/
 │  │  └─ devcontainer.json
 │  └─ linux-nvidia-cuda/
+│  |  └─ devcontainer.json
+│  └─ wsl-intel-xpu/
 │     └─ devcontainer.json
 │
 ├─ docker-compose-wsl-intel-tensorflow-xpu.yml
@@ -127,11 +129,13 @@ deep-learning-dev-env/
 ├─ docker-compose-wsl-intel-openvino.yml
 ├─ docker-compose-wsl-intel-nvidia-cuda.yml
 ├─ docker-compose-linux-nvidia-cuda.yml
+├─ docker-compose-wsl-intel-xpu.yml
 │
 ├─ Dockerfile.intel-tensorflow-xpu
 ├─ Dockerfile.intel-pytorch-xpu
 ├─ Dockerfile.intel-openvino
 ├─ Dockerfile.intel-nvidia-cuda
+├─ Dockerfile.intel-xpu
 │
 ├─ .env
 └─ README.md
@@ -166,15 +170,19 @@ deep-learning-dev-env/
 저장소 루트에 `.env` 파일을 생성합니다.
 
 ```env
-SOURCE_PATH=/mnt/host/f/meori-hr-ai
+SOURCE_PATH=/mnt/host/f/deeplearningspace/deeplearningmeori
 DRIVE_PATH=/mnt/host/e/drive
-PROJECT_NAME=deeplearningspace
+AI_COMPUTE_BENCHMARK_PATH=/mnt/host/f/deeplearningspace/ai-compute-benchmark
+
+PROJECT_NAME=deeplearningmeori
 
 TENSORFLOW_XPU_HOST_PORT=8889
 PYTORCH_XPU_HOST_PORT=8890
 OPENVINO_HOST_PORT=8891
 WSL_NVIDIA_CUDA_HOST_PORT=8892
 LINUX_NVIDIA_CUDA_HOST_PORT=8893
+XPU_HOST_PORT=8894
+
 ```
 
 | 변수 | 의미 |
@@ -212,6 +220,7 @@ ports:
 | OpenVINO | `http://localhost:8891` | `8888` |
 | WSL NVIDIA CUDA | `http://localhost:8892` | `8888` |
 | Linux NVIDIA CUDA | `http://localhost:8893` | `8888` |
+| XPU | `http://localhost:8894` | `8888` |
 
 ---
 
@@ -256,7 +265,7 @@ CMD ["jupyter", "lab", \
 }
 ```
 
-`overrideCommand: true`가 설정되어 있으면 Dockerfile의 `CMD`가 Dev Container 실행 과정에서 덮어써질 수 있습니다. 이 경우 Jupyter 실행은 `postStartCommand`가 담당합니다.
+`overrideCommand: true`가 설정되어 있으면 Dockerfile의 `CMD`가 Dev Container 실행 과정에서 덮어써질 수 있습니다. 이 경우 Jupyter 실행은 컨테이너 생성후 실행되는 `postStartCommand`가 담당합니다.
 
 ---
 
@@ -297,6 +306,8 @@ wsl-intel-pytorch-xpu
 wsl-intel-openvino
 wsl-intel-nvidia-cuda
 linux-nvidia-cuda
+wsl-intel-xpu
+
 ```
 
 ---
@@ -378,6 +389,20 @@ docker compose \
 http://localhost:8893
 ```
 
+### WSL Intel XPU
+
+```bash
+docker compose \
+  -f docker-compose-wsl-intel-xpu.yml \
+  --profile intel-xpu \
+  up -d --build
+```
+
+접속 주소:
+
+```text
+http://localhost:8894
+```
 ---
 
 ## 13. Python 설치 기준
@@ -644,7 +669,7 @@ docker volume prune
 ---
 
 ## 21. Docker Desktop WSL Disk 이동 시 주의
-
+Docker Desktop의 WSL Disk 용량이 초과될경우 Docker Desktop>Settings>Resources> Disk image location 메뉴에서 다른 disk를 지정하여 docker_data.vhdx 이동이 가능하며,
 Docker Desktop의 `docker_data.vhdx` 이동 중 다음 오류가 발생할 수 있습니다.
 
 ```text
@@ -752,9 +777,17 @@ RUN python -m pip install --user --no-cache-dir \
 ### 주의사항
 
 `pip install numpy`로 설치된 NumPy가 OpenBLAS를 사용하는지, MKL을 사용하는지는 이미지와 플랫폼에 따라 달라질 수 있다. 따라서 Dockerfile 설정 후 `np.show_config()`와 `threadpool_info()`로 실제 백엔드를 확인해야 한다.
-
 이 설정은 NumPy의 연산 알고리즘을 변경하는 것이 아니라, 내부 병렬 연산에서 사용할 CPU 스레드 수를 제한하여 실행 환경에 맞게 성능을 안정화하는 설정이다.
 
+## 23. 연산 라이브러리 성능 측정.
+AI_COMPUTE_BENCHMARK_PATH 환경변수를 추가하여 AI compute environments (including Docker, WSL, Intel XPU, OpenBLAS, oneMKL, TensorFlow, PyTorch, and NVIDIA CUDA, Numpy)의 성능을 측정할수 있습니다.
+
+.env 에 환경변수를 추가
+  AI_COMPUTE_BENCHMARK_PATH=/mnt/host/f/deeplearningspace/ai-compute-benchmark
+
+github source repository 
+   git@github.com:withlionbuddha/ai-compute-benchmark.git
+   
 ## 맺음말
 
 이 저장소는 운영 배포용 이미지가 아니라 학습, 실험, 개발 환경 재현을 위한 Dev Container 구성입니다.
