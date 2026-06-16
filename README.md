@@ -742,7 +742,7 @@ wsl --shutdown
 이 설정은 WSL 전체가 사용할 수 있는 CPU와 메모리 상한을 정한다.
 ```
 
-```
+
 docker-compose의 environment 설정.
 12th Gen Intel(R) Core(TM) i7-1260P의 경우, 처음에는 `4`를 권장하고, 대형 행렬 연산이 많고 발열 문제가 없다면 `6` 으로 올린다.
 
