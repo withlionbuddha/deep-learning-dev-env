@@ -724,10 +724,11 @@ NumPy의 모든 연산이 멀티스레드로 실행되는 것은 아니지만, �
 
 ### 권장값
 
-Name                                 NumberOfCores  NumberOfLogicalProcessors
-12th Gen Intel(R) Core(TM) i7-1260P  12             16
+ex)
+Name : 12th Gen Intel(R) Core(TM) i7-1260P
+NumberOfCores : 12
+NumberOfLogicalProcessors : 16
 
-```
 WSL CPU 할당 설정
 Windows의 다음 위치에 .wslconfig 파일을 생성한다.
 C:\Users\사용자이름\.wslconfig
