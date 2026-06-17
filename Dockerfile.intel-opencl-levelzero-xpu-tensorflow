@@ -1,0 +1,183 @@
+############## MS1 ############## 
+
+FROM ubuntu:22.04 AS intel-levelzero-opencl-xpu
+# -----------------------------------
+# 기본 환경 변수
+# -----------------------------------
+ENV DEBIAN_FRONTEND=noninteractive
+
+ENV HOME=/home/dev
+ENV SHELL=/bin/bash
+
+ENV PATH=/home/dev/.local/bin:$PATH
+ENV XDG_CACHE_HOME=/home/dev/.cache
+
+# -----------------------------------
+# 시스템 패키지 설치
+# -----------------------------------
+RUN apt-get update && apt-get install -y \
+    sudo \
+    curl \
+    wget \
+    vim \
+    nano \
+    tini \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    pkg-config \
+    ca-certificates \
+    openssh-client \
+    iputils-ping \
+    net-tools \
+    procps \
+    gnupg \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python-is-python3 \
+ && rm -rf /var/lib/apt/lists/*
+
+#-----------------------------------
+# Intel GPU runtime 패키지를 apt로 설치할 수 있게 저장소를 추가 (ubuntu 22.04)
+#-----------------------------------
+ RUN wget -qO - https://repositories.intel.com/graphics/intel-graphics.key | \
+    gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg \
+ && echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu jammy arc" \
+    > /etc/apt/sources.list.d/intel.gpu.jammy.list \
+ && dpkg --add-architecture i386 \
+ && apt-get update
+  
+#-----------------------------------
+# Intel GPU Runtime (필수)
+#-----------------------------------
+RUN apt-get update && apt-get install -y \
+    intel-opencl-icd \
+    intel-level-zero-gpu \
+    level-zero \
+    level-zero-dev \
+    clinfo \
+ && rm -rf /var/lib/apt/lists/*
+ 
+#-----------------------------------
+# Intel GPU Runtime (미디어/GUI/OpenVINO 계열)
+#-----------------------------------
+RUN apt-get update && apt-get install -y \
+    intel-media-va-driver-non-free \
+    libmfx1 \
+    libmfxgen1 \
+    libvpl2 \
+    libegl-mesa0 \
+    libegl1-mesa \
+    libgbm1 \
+    libgl1-mesa-dri \
+    libglx-mesa0 \
+    libigdgmm12 \
+    mesa-va-drivers \
+    mesa-vulkan-drivers \
+    va-driver-all \
+ && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------
+# OpenCL 수준 Intel GPU 
+# -----------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    clinfo \
+    gpg \
+    ocl-icd-libopencl1 \
+    ocl-icd-opencl-dev \
+    intel-opencl-icd \
+    libigc1 \
+    libigdfcl1 \
+    libigdgmm12 \
+    libgl1 \
+    libglib2.0-0 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------
+# Intel oneAPI runtime 설치
+# -----------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    gpg \
+    ca-certificates \
+    && mkdir -p /usr/share/keyrings \
+    && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+    | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
+    > /etc/apt/sources.list.d/oneAPI.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        intel-oneapi-runtime-compilers \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------
+# libimf.so 경로 등록
+# -----------------------------------
+RUN find /opt/intel/oneapi -name "libimf.so*" -print \
+    && find /opt/intel/oneapi -name "libimf.so*" -exec dirname {} \; \
+    | sort -u > /etc/ld.so.conf.d/intel-oneapi.conf \
+    && ldconfig
+
+
+# -----------------------------------
+# 일반 사용자 생성
+# -----------------------------------
+RUN useradd -m -s /bin/bash dev \
+ && echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# -----------------------------------
+# 작업 디렉토리 생성
+# -----------------------------------
+RUN mkdir -p /home/workspace \
+ && chown -R dev:dev /home/workspace
+
+# -----------------------------------
+# 사용자 전환
+# -----------------------------------
+USER dev
+
+WORKDIR /home/workspace
+
+# -----------------------------------
+# pip 최신화
+# -----------------------------------
+RUN python -m pip install --user --upgrade \
+    pip \
+    setuptools \
+    wheel
+
+# -----------------------------------
+# Python 패키지 설치
+# -----------------------------------
+RUN python -m pip install --user --no-cache-dir \
+    numpy \
+    pandas \
+    matplotlib \
+    scikit-learn \
+    wget \
+    threadpoolctl
+
+############## MS2 ##################
+FROM intel-levelzero-opencl-xpu AS intel-levelzero-opencl-xpu-tensorflow
+
+# -----------------------------------
+# Intel TensorFlow XPU 설치
+# Intel Extension for TensorFlow는 stock TensorFlow 2.15.x 계열과 맞춰 사용
+# -----------------------------------
+RUN python -m pip install --user --no-cache-dir \
+    tensorflow==2.15.1 \
+    "intel-extension-for-tensorflow[xpu]"
+
+# -----------------------------------
+# Python 패키지 설치
+# -----------------------------------
+RUN python -m pip install --user --no-cache-dir \
+    numpy \
+    pandas \
+    matplotlib \
+    scikit-learn \
+    wget

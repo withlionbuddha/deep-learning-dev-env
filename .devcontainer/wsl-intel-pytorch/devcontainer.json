@@ -1,8 +1,8 @@
 {
-  "name": "wsl-intel-xpu-dev-env",
-  "service": "intel-xpu-dev",
+  "name": "wsl-intel-xpu-pytorch-dev-env",
+  "service": "wsl-intel-xpu-pytorch-dev",
   "dockerComposeFile": [
-    "../../docker-compose-wsl-intel-xpu.yml"
+    "../../docker-compose-wsl-intel-xpu-pytorch.yml"
   ],
   "workspaceFolder": "/home/workspace",
   "overrideCommand": true,
@@ -10,9 +10,9 @@
   "postStartCommand": [
     "sh",
     "-c",
-    "ln -s /home/drive /home/workspace/drive || true && jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root"
-  ],
-  "runServices":["intel-xpu-dev"],
+    "ln -s /home/drive /home/workspace/drive"
+  ] ,
+  "runServices":["wsl-intel-xpu-pytorch-dev"],
   "customizations": {
     "vscode": {
       "extensions": [

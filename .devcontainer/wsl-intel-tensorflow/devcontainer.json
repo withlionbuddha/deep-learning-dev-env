@@ -1,8 +1,8 @@
 {
-  "name": "wsl-intel-tensorflow-xpu-dev-env",
-  "service": "intel-tensorflow-xpu-dev",
+  "name": "wsl-intel-xpu-tensorflow-dev-env",
+  "service": "wsl-intel-xpu-tensorflow-dev",
   "dockerComposeFile": [
-    "../../docker-compose-wsl-intel-tensorflow-xpu.yml"
+    "../../docker-compose-wsl-intel-xpu-tensorflow.yml"
   ],
   "workspaceFolder": "/home/workspace",
   "overrideCommand": true,
@@ -10,9 +10,9 @@
   "postStartCommand": [
     "sh",
     "-c",
-    "ln -s /home/drive /home/workspace/drive || true && jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root"
+    "ln -s /home/drive /home/workspace/drive"
   ] ,
-  "runServices":["intel-tensorflow-xpu-dev"],
+  "runServices":["wsl-intel-xpu-tensorflow-dev"],
   "customizations": {
     "vscode": {
       "extensions": [

@@ -1,13 +1,12 @@
 version: "3.9"
 
 services:
-  intel-tensorflow-xpu-dev:
-    profiles: ["tensorflow-xpu"]
-    ports:
-      - "${TENSORFLOW_XPU_HOST_PORT}:8888"
+  wsl-intel-xpu-pytorch-dev:
+    profiles: ["wsl-intel-xpu-pytorch"]
+    image: intel-levelzero-xpu-pytorch:latest
     build:
         context: .
-        dockerfile: Dockerfile.intel-tensorflow-xpu
+        dockerfile: Dockerfile.intel-levelzero-xpu-pytorch
     user: root
     volumes:
       - type: bind
@@ -28,4 +27,3 @@ services:
     devices:
       - /dev/dxg:/dev/dxg
     restart: unless-stopped
-    

@@ -1,8 +1,8 @@
 {
-  "name": "wsl-intel-nvidia-cuda-dev-env",
-  "service": "wsl-intel-nvidia-cuda-dev",
+  "name": "wsl-intel-levelzero-xpu-dev-env",
+  "service": "wsl-intel-levelzero-xpu-dev",
   "dockerComposeFile": [
-    "../../docker-compose-wsl-intel-nvidia-cuda.yml"
+    "../../docker-compose-wsl-intel-levezero-xpu.yml"
   ],
   "workspaceFolder": "/home/workspace",
   "overrideCommand": true,
@@ -10,9 +10,9 @@
   "postStartCommand": [
     "sh",
     "-c",
-    "ln -s /home/drive /home/workspace/drive || true && jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root"
-  ] ,
-  "runServices":["wsl-intel-nvidia-cuda-dev"],
+    "ln -s /home/drive /home/workspace/drive "
+  ],
+  "runServices":["wsl-intel-levelzero-xpu-dev"],
   "customizations": {
     "vscode": {
       "extensions": [

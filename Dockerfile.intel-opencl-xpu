@@ -1,15 +1,9 @@
-FROM python:3.10-slim-bookworm
 
+FROM python:3.10-slim-bookworm 
 # -----------------------------------
 # 기본 환경 변수
 # -----------------------------------
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PYTHONUNBUFFERED=1
-
-# -----------------------------------
-# Intel 내장 GPU의 영상 디코딩/인코딩 가속 사용
-# -----------------------------------
-ENV LIBVA_DRIVER_NAME=iHD
 
 ENV HOME=/home/dev
 ENV SHELL=/bin/bash
@@ -40,24 +34,19 @@ RUN apt-get update && apt-get install -y \
  && rm -rf /var/lib/apt/lists/*
 
 # -----------------------------------
-# Intel GPU 관련 패키지 설치
-# OpenVINO GPU 추론을 위한 OpenCL 런타임 및 확인 도구
+# OpenCL 수준 Intel GPU 
 # -----------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    intel-opencl-icd \
-    ocl-icd-libopencl1 \
     clinfo \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# -----------------------------------
-# Intel 영상 가속 관련 패키지 설치
-# VA-API 기반 영상 디코딩/인코딩 확인용
-# OpenVINO 추론만 목적이면 생략 가능
-# -----------------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    intel-media-va-driver \
-    vainfo \
+    gpg \
+    ocl-icd-libopencl1 \
+    ocl-icd-opencl-dev \
+    intel-opencl-icd \
+    libigc1 \
+    libigdfcl1 \
+    libigdgmm12 \
+    libgl1 \
+    libglib2.0-0 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -90,47 +79,15 @@ RUN python -m pip install --user --upgrade \
     wheel
 
 # -----------------------------------
-# Intel AI 추론(inference) 최적화 프레임워크  설치
-# -----------------------------------
-RUN python -m pip install --user --no-cache-dir \
-    openvino \
-    onnx
-
-# -----------------------------------
 # Python 패키지 설치
-# Jupyter 및 데이터 분석/딥러닝 실습 기본 패키지
 # -----------------------------------
 RUN python -m pip install --user --no-cache-dir \
-    notebook \
-    jupyterlab \
-    ipywidgets \
     numpy \
     pandas \
     matplotlib \
     scikit-learn \
-    ipykernel 
+    wget \
+    threadpoolctl
 
-# -----------------------------------
-# Jupyter 기본 설정 디렉토리 생성
-# -----------------------------------
-RUN mkdir -p /home/dev/.jupyter
 
-# -----------------------------------
-# Jupyter 포트 오픈
-# -----------------------------------
-EXPOSE 8888
 
-# -----------------------------------
-# tini init process
-# -----------------------------------
-ENTRYPOINT ["/usr/bin/tini", "--"]
-
-# -----------------------------------
-# 기본 실행
-# -----------------------------------
-CMD ["jupyter", "lab", \
-     "--ip=0.0.0.0", \
-     "--port=8888", \
-     "--no-browser", \
-     "--ServerApp.token=", \
-     "--ServerApp.allow_origin=*"]

@@ -1,10 +1,9 @@
 
-FROM python:3.10-slim-bookworm 
+FROM ubuntu:22.04
 # -----------------------------------
 # 기본 환경 변수
 # -----------------------------------
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PYTHONUNBUFFERED=1
 
 ENV HOME=/home/dev
 ENV SHELL=/bin/bash
@@ -32,18 +31,67 @@ RUN apt-get update && apt-get install -y \
     iputils-ping \
     net-tools \
     procps \
-    libgl1 \
-    libglib2.0-0 \
+    gnupg \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python-is-python3 \
+ && rm -rf /var/lib/apt/lists/*
+
+#-----------------------------------
+# Intel GPU runtime 패키지를 apt로 설치할 수 있게 저장소를 추가 (ubuntu 22.04)
+#-----------------------------------
+ RUN wget -qO - https://repositories.intel.com/graphics/intel-graphics.key | \
+    gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg \
+ && echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu jammy arc" \
+    > /etc/apt/sources.list.d/intel.gpu.jammy.list \
+ && dpkg --add-architecture i386 \
+ && apt-get update
+  
+#-----------------------------------
+# Intel GPU Runtime (필수)
+#-----------------------------------
+RUN apt-get update && apt-get install -y \
+    intel-opencl-icd \
+    intel-level-zero-gpu \
+    level-zero \
+    level-zero-dev \
+    clinfo \
+ && rm -rf /var/lib/apt/lists/*
+ 
+#-----------------------------------
+# Intel GPU Runtime (미디어/GUI/OpenVINO 계열)
+#-----------------------------------
+RUN apt-get update && apt-get install -y \
+    intel-media-va-driver-non-free \
+    libmfx1 \
+    libmfxgen1 \
+    libvpl2 \
+    libegl-mesa0 \
+    libegl1-mesa \
+    libgbm1 \
+    libgl1-mesa-dri \
+    libglx-mesa0 \
+    libigdgmm12 \
+    mesa-va-drivers \
+    mesa-vulkan-drivers \
+    va-driver-all \
  && rm -rf /var/lib/apt/lists/*
 
 # -----------------------------------
-# Intel GPU 확인용 패키지 설치
-# TensorFlow XPU 자체의 핵심 설치는 pip 패키지에서 처리
-# clinfo는 GPU/OpenCL 확인용으로만 사용
+# OpenCL 수준 Intel GPU 
 # -----------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
     clinfo \
     gpg \
+    ocl-icd-libopencl1 \
+    ocl-icd-opencl-dev \
+    intel-opencl-icd \
+    libigc1 \
+    libigdfcl1 \
+    libigdgmm12 \
+    libgl1 \
+    libglib2.0-0 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -73,6 +121,7 @@ RUN find /opt/intel/oneapi -name "libimf.so*" -print \
     | sort -u > /etc/ld.so.conf.d/intel-oneapi.conf \
     && ldconfig
 
+
 # -----------------------------------
 # 일반 사용자 생성
 # -----------------------------------
@@ -100,53 +149,13 @@ RUN python -m pip install --user --upgrade \
     setuptools \
     wheel
 
-
-# -----------------------------------
-# Intel TensorFlow XPU 설치
-# Intel Extension for TensorFlow는 stock TensorFlow 2.15.x 계열과 맞춰 사용
-# -----------------------------------
-RUN python -m pip install --user --no-cache-dir \
-    tensorflow==2.15.1 \
-    "intel-extension-for-tensorflow[xpu]"
-
 # -----------------------------------
 # Python 패키지 설치
-# Jupyter 및 데이터 분석/딥러닝 실습 기본 패키지
 # -----------------------------------
 RUN python -m pip install --user --no-cache-dir \
-    notebook \
-    jupyterlab \
-    ipywidgets \
     numpy \
     pandas \
     matplotlib \
     scikit-learn \
-    intel-extension-for-tensorflow \
-    ipykernel \
-    wget
-
-
-# -----------------------------------
-# Jupyter 기본 설정 디렉토리 생성
-# -----------------------------------
-RUN mkdir -p /home/dev/.jupyter
-
-# -----------------------------------
-# Jupyter 포트 오픈
-# -----------------------------------
-EXPOSE 8888
-
-# -----------------------------------
-# tini init process
-# -----------------------------------
-ENTRYPOINT ["/usr/bin/tini", "--"]
-
-# -----------------------------------
-# 기본 실행
-# -----------------------------------
-CMD ["jupyter", "lab", \
-     "--ip=0.0.0.0", \
-     "--port=8888", \
-     "--no-browser", \
-     "--ServerApp.token=", \
-     "--ServerApp.allow_origin=*"]
+    wget \
+    threadpoolctl

@@ -1,13 +1,11 @@
 version: "3.9"
 
 services:
-  intel-pytorch-xpu-dev:
-    profiles: ["pytorch-xpu"]
-    ports:
-      - "${PYTORCH_XPU_HOST_PORT}:8888"
+  wsl-intel-levelzero-xpu-dev:
+    profiles: ["wsl-intel-levelzero-xpu"]
     build:
         context: .
-        dockerfile: Dockerfile.intel-pytorch-xpu
+        dockerfile: Dockerfile.intel-levelzero-xpu
     user: root
     volumes:
       - type: bind
@@ -21,10 +19,18 @@ services:
         source: /usr/lib/wsl
         target: /usr/lib/wsl
         read_only: true
+      - type : bind
+        source : ${AI_COMPUTE_BENCHMARK_PATH}
+        target : /home/workspace/ai-compute-benchmark
     environment:
       PYTHONUNBUFFERED: "1"
       LD_LIBRARY_PATH: "/usr/lib/wsl/lib"
+      OMP_NUM_THREADS: "4"
+      OPENBLAS_NUM_THREADS: "4"
+      MKL_NUM_THREADS: "4"
+      NUMEXPR_NUM_THREADS: "4"
     working_dir: /home/workspace
     devices:
       - /dev/dxg:/dev/dxg
     restart: unless-stopped
+    

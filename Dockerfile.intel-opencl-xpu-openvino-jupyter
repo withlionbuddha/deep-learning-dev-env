@@ -1,13 +1,11 @@
-# Intel GPU 학습/추론용
-# Intel GPU용 PyTorch XPU 실험 환경
-# 
-FROM python:3.10-slim-bookworm
+############## MS1 ############## 
+
+FROM python:3.10-slim-bookworm AS intel-opencl-xpu
 
 # -----------------------------------
 # 기본 환경 변수
 # -----------------------------------
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PYTHONUNBUFFERED=1
 
 ENV HOME=/home/dev
 ENV SHELL=/bin/bash
@@ -36,6 +34,23 @@ RUN apt-get update && apt-get install -y \
     net-tools \
     procps \
  && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------
+# OpenCL 수준 Intel GPU 
+# -----------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    clinfo \
+    gpg \
+    ocl-icd-libopencl1 \
+    ocl-icd-opencl-dev \
+    intel-opencl-icd \
+    libigc1 \
+    libigdfcl1 \
+    libigdgmm12 \
+    libgl1 \
+    libglib2.0-0 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 
 # -----------------------------------
@@ -66,34 +81,60 @@ RUN python -m pip install --user --upgrade \
     wheel
 
 # -----------------------------------
-# Intel GPU용 PyTorch XPU 설치
+# Python 패키지 설치
 # -----------------------------------
 RUN python -m pip install --user --no-cache-dir \
-    torch \
-    torchvision \
-    torchaudio \
-    --index-url https://download.pytorch.org/whl/xpu
+    numpy \
+    pandas \
+    matplotlib \
+    scikit-learn \
+    wget \
+    threadpoolctl
+
+
+############## MS2 ############## 
+FROM intel-opencl-xpu AS intel-opencl-xpu-openvino
+ 
+# -----------------------------------
+# Intel 내장 GPU의 영상 디코딩/인코딩 가속 사용
+# -----------------------------------
+ENV LIBVA_DRIVER_NAME=iHD
 
 # -----------------------------------
-# Python 패키지 설치
+# Intel 영상 가속 관련 패키지 설치
+# VA-API 기반 영상 디코딩/인코딩 확인용
+# OpenVINO 추론만 목적이면 생략 가능
+# -----------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    intel-media-va-driver \
+    vainfo \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------
+# Intel AI 추론(inference) 최적화 프레임워크  설치
+# -----------------------------------
+RUN python -m pip install --user --no-cache-dir \
+    openvino \
+    onnx
+
+############## MS3 ############## 
+
+FROM intel-opencl-xpu-openvino
+ 
+# -----------------------------------
+# Jupyter 기본 설정 디렉토리 생성
+# -----------------------------------
+RUN mkdir -p /home/dev/.jupyter
+
+# -----------------------------------
 # Jupyter 및 데이터 분석/딥러닝 실습 기본 패키지
 # -----------------------------------
 RUN python -m pip install --user --no-cache-dir \
     notebook \
     jupyterlab \
     ipywidgets \
-    numpy \
-    pandas \
-    matplotlib \
-    scikit-learn \
     ipykernel 
-
-
-
-# -----------------------------------
-# Jupyter 기본 설정 디렉토리 생성
-# -----------------------------------
-RUN mkdir -p /home/dev/.jupyter
 
 # -----------------------------------
 # Jupyter 포트 오픈

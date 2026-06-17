@@ -1,13 +1,13 @@
 version: "3.9"
 
 services:
-  intel-xpu-dev:
-    profiles: ["intel-xpu"]
+  wsl-intel-xpu-tensorflow-jupyter-dev:
+    profiles: ["wsl-intel-xpu-tensorflow-jupyter"]
     ports:
-      - "${XPU_HOST_PORT}:8888"
+      - "${TENSORFLOW_XPU_HOST_PORT}:8888"
     build:
         context: .
-        dockerfile: Dockerfile.intel-xpu
+        dockerfile: Dockerfile.intel-opencl-levelzero-xpu-tensorflow-jupyter
     user: root
     volumes:
       - type: bind
@@ -21,16 +21,9 @@ services:
         source: /usr/lib/wsl
         target: /usr/lib/wsl
         read_only: true
-      - type : bind
-        source : ${AI_COMPUTE_BENCHMARK_PATH}
-        target : /home/workspace/ai-compute-benchmark
     environment:
       PYTHONUNBUFFERED: "1"
       LD_LIBRARY_PATH: "/usr/lib/wsl/lib"
-      OMP_NUM_THREADS: "4"
-      OPENBLAS_NUM_THREADS: "4"
-      MKL_NUM_THREADS: "4"
-      NUMEXPR_NUM_THREADS: "4"
     working_dir: /home/workspace
     devices:
       - /dev/dxg:/dev/dxg

@@ -1,8 +1,8 @@
 {
-  "name": "wsl-intel-nvidia-cuda-dev-env",
-  "service": "wsl-intel-nvidia-cuda-dev",
+  "name": "wsl-intel-xpu-pytorch-jupyter-dev-env",
+  "service": "wsl-intel-xpu-pytorch-jupyter-dev", 
   "dockerComposeFile": [
-    "../../docker-compose-wsl-intel-nvidia-cuda.yml"
+    "../../docker-compose-wsl-intel-xpu-pytorch-jupyter.yml"
   ],
   "workspaceFolder": "/home/workspace",
   "overrideCommand": true,
@@ -12,7 +12,7 @@
     "-c",
     "ln -s /home/drive /home/workspace/drive || true && jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root"
   ] ,
-  "runServices":["wsl-intel-nvidia-cuda-dev"],
+  "runServices":["wsl-intel-xpu-pytorch-jupyter-dev"], 
   "customizations": {
     "vscode": {
       "extensions": [

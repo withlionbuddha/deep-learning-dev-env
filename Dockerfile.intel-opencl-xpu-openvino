@@ -1,0 +1,119 @@
+############## MS1 ############## 
+
+FROM python:3.10-slim-bookworm AS intel-opencl-xpu
+
+# -----------------------------------
+# 기본 환경 변수
+# -----------------------------------
+ENV DEBIAN_FRONTEND=noninteractive
+
+ENV HOME=/home/dev
+ENV SHELL=/bin/bash
+
+ENV PATH=/home/dev/.local/bin:$PATH
+ENV XDG_CACHE_HOME=/home/dev/.cache
+
+# -----------------------------------
+# 시스템 패키지 설치
+# -----------------------------------
+RUN apt-get update && apt-get install -y \
+    sudo \
+    curl \
+    wget \
+    vim \
+    nano \
+    tini \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    pkg-config \
+    ca-certificates \
+    openssh-client \
+    iputils-ping \
+    net-tools \
+    procps \
+ && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------
+# OpenCL 수준 Intel GPU 
+# -----------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    clinfo \
+    gpg \
+    ocl-icd-libopencl1 \
+    ocl-icd-opencl-dev \
+    intel-opencl-icd \
+    libigc1 \
+    libigdfcl1 \
+    libigdgmm12 \
+    libgl1 \
+    libglib2.0-0 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+
+# -----------------------------------
+# 일반 사용자 생성
+# -----------------------------------
+RUN useradd -m -s /bin/bash dev \
+ && echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# -----------------------------------
+# 작업 디렉토리 생성
+# -----------------------------------
+RUN mkdir -p /home/workspace \
+ && chown -R dev:dev /home/workspace
+
+# -----------------------------------
+# 사용자 전환
+# -----------------------------------
+USER dev
+
+WORKDIR /home/workspace
+
+# -----------------------------------
+# pip 최신화
+# -----------------------------------
+RUN python -m pip install --user --upgrade \
+    pip \
+    setuptools \
+    wheel
+
+# -----------------------------------
+# Python 패키지 설치
+# -----------------------------------
+RUN python -m pip install --user --no-cache-dir \
+    numpy \
+    pandas \
+    matplotlib \
+    scikit-learn \
+    wget \
+    threadpoolctl
+
+
+############## MS2 ############## 
+FROM intel-opencl-xpu AS intel-opencl-xpu-openvino
+ 
+# -----------------------------------
+# Intel 내장 GPU의 영상 디코딩/인코딩 가속 사용
+# -----------------------------------
+ENV LIBVA_DRIVER_NAME=iHD
+
+# -----------------------------------
+# Intel 영상 가속 관련 패키지 설치
+# VA-API 기반 영상 디코딩/인코딩 확인용
+# OpenVINO 추론만 목적이면 생략 가능
+# -----------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    intel-media-va-driver \
+    vainfo \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------
+# Intel AI 추론(inference) 최적화 프레임워크  설치
+# -----------------------------------
+RUN python -m pip install --user --no-cache-dir \
+    openvino \
+    onnx
