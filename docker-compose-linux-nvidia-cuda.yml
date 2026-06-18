@@ -17,6 +17,9 @@ services:
         source: ${DRIVE_PATH}
         target: /home/drive
         read_only: true
+      - type : bind
+        source : ${AI_COMPUTE_BENCHMARK_PATH}
+        target : /home/workspace/ai-compute-benchmark
     working_dir: /home/workspace
     environment:
       NVIDIA_VISIBLE_DEVICES: all
