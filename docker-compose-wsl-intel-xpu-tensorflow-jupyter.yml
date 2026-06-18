@@ -21,6 +21,9 @@ services:
         source: /usr/lib/wsl
         target: /usr/lib/wsl
         read_only: true
+      - type : bind
+        source : ${AI_COMPUTE_BENCHMARK_PATH}
+        target : /home/workspace/ai-compute-benchmark
     environment:
       PYTHONUNBUFFERED: "1"
       LD_LIBRARY_PATH: "/usr/lib/wsl/lib"
