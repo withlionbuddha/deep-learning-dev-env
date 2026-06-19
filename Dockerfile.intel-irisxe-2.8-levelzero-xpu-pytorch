@@ -1,0 +1,284 @@
+# syntax=docker/dockerfile:1.7
+
+############## MS1 ##############
+
+FROM ubuntu:22.04 AS intel-levelzero-xpu
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# -----------------------------------
+# 기본 환경 변수
+# -----------------------------------
+ENV DEBIAN_FRONTEND=noninteractive \
+    HOME=/home/dev \
+    SHELL=/bin/bash \
+    PATH=/home/dev/.local/bin:$PATH \
+    XDG_CACHE_HOME=/home/dev/.cache \
+    LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH \
+    OMP_NUM_THREADS=6 \
+    MKL_NUM_THREADS=6 \
+    OPENBLAS_NUM_THREADS=6 \
+    NUMEXPR_NUM_THREADS=6
+
+# -----------------------------------
+# 시스템 패키지 설치
+# -----------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    sudo \
+    curl \
+    wget \
+    vim \
+    nano \
+    tini \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    pkg-config \
+    ca-certificates \
+    openssh-client \
+    iputils-ping \
+    net-tools \
+    procps \
+    gnupg \
+    gpg-agent \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python-is-python3 \
+ && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------
+# Intel GPU runtime 저장소 추가
+# Ubuntu 22.04 / WSL2 / Docker 실험용 구성
+# 기존 repositories.intel.com/graphics/ubuntu jammy arc 보다 최신 client repo를 우선 사용한다.
+# -----------------------------------
+RUN wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | \
+    gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg \
+ && echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy client" \
+    > /etc/apt/sources.list.d/intel-gpu-jammy.list \
+ && dpkg --add-architecture i386 \
+ && apt-get update
+
+# -----------------------------------
+# Intel GPU Runtime
+# PyTorch XPU는 Level Zero 경로를 사용한다.
+# 배포 시점에 따라 패키지명이 다를 수 있어 core는 필수 설치, dev/보조 패키지는 가능한 경우만 설치한다.
+# -----------------------------------
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    intel-opencl-icd \
+    intel-level-zero-gpu \
+    clinfo \
+ && for pkg in \
+    libze1 \
+    libze-dev \
+    intel-ocloc \
+    intel-level-zero-gpu-dev \
+    level-zero \
+    level-zero-dev \
+    libigc1 \
+    intel-igc-cm \
+    libigdgmm12; do \
+      apt-get install -y --no-install-recommends "$pkg" || true; \
+    done \
+ && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------
+# Intel GPU Runtime 보조 패키지
+# 없는 패키지는 건너뛴다.
+# -----------------------------------
+RUN apt-get update \
+ && for pkg in \
+    intel-media-va-driver-non-free \
+    libmfx1 \
+    libmfxgen1 \
+    libvpl2 \
+    libegl-mesa0 \
+    libegl1-mesa \
+    libgbm1 \
+    libgl1-mesa-dri \
+    libglx-mesa0 \
+    mesa-va-drivers \
+    mesa-vulkan-drivers \
+    va-driver-all; do \
+      apt-get install -y --no-install-recommends "$pkg" || true; \
+    done \
+ && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------
+# Intel oneAPI repository 추가
+# -----------------------------------
+RUN mkdir -p /usr/share/keyrings \
+ && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+    | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
+ && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
+    > /etc/apt/sources.list.d/oneAPI.list \
+ && apt-get update
+
+# -----------------------------------
+# Intel oneAPI 런타임 일부
+# pip wheel 사용 시 전체 Deep Learning Essentials는 일반적으로 자동 의존성으로 처리된다.
+# 그래도 libimf 계열 런타임 경로는 등록한다.
+# -----------------------------------
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends intel-oneapi-runtime-compilers \
+ && rm -rf /var/lib/apt/lists/* \
+ && find /opt/intel/oneapi -name "libimf.so*" -exec dirname {} \; | sort -u > /etc/ld.so.conf.d/intel-oneapi.conf \
+ && ldconfig
+
+# -----------------------------------
+# 일반 사용자 생성
+# -----------------------------------
+RUN useradd -m -s /bin/bash dev \
+ && echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
+ && mkdir -p /home/workspace \
+ && chown -R dev:dev /home/workspace /home/dev
+
+USER dev
+WORKDIR /home/workspace
+
+# -----------------------------------
+# pip 최신화 및 기본 Python 패키지 설치
+# -----------------------------------
+RUN python -m pip install --user --upgrade pip setuptools wheel
+
+RUN python -m pip install --user --no-cache-dir \
+    numpy \
+    pandas \
+    matplotlib \
+    scikit-learn \
+    threadpoolctl
+
+############## MS2 ##############
+
+FROM intel-levelzero-xpu AS intel-levelzero-xpu-pytorch
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# -----------------------------------
+# Intel Iris Xe 0x46a6 실험용 PyTorch XPU 조합
+# 확인된 공식 wheel: torch 2.8.0+xpu / torchvision 0.23.0+xpu / torchaudio 2.8.0+xpu
+# 주의: 0x46a6은 공식 검증 GPU 목록에 명시되어 있지 않으므로 초기화 보장은 안 된다.
+# -----------------------------------
+ARG PYTORCH_VERSION=2.8.0+xpu
+ARG TORCHVISION_VERSION=0.23.0+xpu
+ARG TORCHAUDIO_VERSION=2.8.0+xpu
+
+RUN python -m pip uninstall -y \
+    torch \
+    torchvision \
+    torchaudio \
+    pytorch-triton-xpu \
+    intel-extension-for-pytorch \
+    intel_extension_for_pytorch \
+ || true
+
+RUN python -m pip install --user --no-cache-dir --force-reinstall \
+    --timeout 180 \
+    --retries 10 \
+    --index-url https://download.pytorch.org/whl/xpu \
+    --extra-index-url https://pypi.org/simple \
+    "torch==${PYTORCH_VERSION}" \
+    "torchvision==${TORCHVISION_VERSION}" \
+    "torchaudio==${TORCHAUDIO_VERSION}"
+
+# -----------------------------------
+# 런타임 점검 스크립트
+# Docker build 단계에서는 /dev/dxg가 없을 수 있으므로 실행하지 않고 파일만 생성한다.
+# 컨테이너 실행 후 check-pytorch-xpu 명령으로 확인한다.
+# -----------------------------------
+USER root
+RUN <<'EOF'
+cat > /usr/local/bin/check-pytorch-xpu <<'PY'
+#!/usr/bin/env python3
+import json
+import os
+import subprocess
+import sys
+import warnings
+
+
+def cmd(cmdline):
+    try:
+        p = subprocess.run(
+            cmdline,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        return {
+            "cmd": cmdline,
+            "returncode": p.returncode,
+            "stdout": p.stdout.splitlines(),
+            "stderr": p.stderr.splitlines(),
+        }
+    except FileNotFoundError:
+        return {"cmd": cmdline, "returncode": None, "stdout": [], "stderr": ["command not found"]}
+
+
+report = {
+    "python": sys.version,
+    "executable": sys.executable,
+    "ld_library_path": os.environ.get("LD_LIBRARY_PATH"),
+    "dev_dxg_exists": os.path.exists("/dev/dxg"),
+    "dev_dri_exists": os.path.exists("/dev/dri"),
+    "clinfo_head": cmd(["bash", "-lc", "clinfo | sed -n '1,80p'"]),
+}
+
+try:
+    import torch
+
+    report["torch_version"] = torch.__version__
+    report["torch_file"] = getattr(torch, "__file__", None)
+    report["has_xpu"] = hasattr(torch, "xpu")
+
+    if hasattr(torch, "xpu"):
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            available = torch.xpu.is_available()
+            count = torch.xpu.device_count()
+
+        report["xpu_available"] = bool(available)
+        report["xpu_device_count"] = int(count)
+        report["warnings"] = [
+            {"category": w.category.__name__, "message": str(w.message)}
+            for w in captured
+        ]
+        report["devices"] = []
+
+        if available and count > 0:
+            for i in range(count):
+                report["devices"].append(torch.xpu.get_device_name(i))
+
+            x = torch.randn(256, 256, device="xpu")
+            y = x @ x
+            torch.xpu.synchronize()
+            report["matmul_ok"] = True
+            report["matmul_device"] = str(y.device)
+            report["matmul_shape"] = list(y.shape)
+        else:
+            report["matmul_ok"] = False
+            report["reason"] = "torch.xpu.is_available() is False"
+    else:
+        report["xpu_available"] = False
+        report["xpu_device_count"] = 0
+        report["matmul_ok"] = False
+        report["reason"] = "torch.xpu API is not present"
+
+except Exception as exc:
+    report["exception"] = {"type": type(exc).__name__, "message": str(exc)}
+
+print(json.dumps(report, indent=2, ensure_ascii=False))
+
+if report.get("xpu_available") and report.get("matmul_ok"):
+    raise SystemExit(0)
+raise SystemExit(3)
+PY
+chmod +x /usr/local/bin/check-pytorch-xpu
+EOF
+
+USER dev
+
+CMD ["bash"]
