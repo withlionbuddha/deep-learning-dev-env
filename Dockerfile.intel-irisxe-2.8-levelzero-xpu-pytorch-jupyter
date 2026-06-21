@@ -2,7 +2,7 @@
 
 ############## MS1 ##############
 
-FROM ubuntu:22.04 AS intel-levelzero-xpu
+FROM ubuntu:22.04 AS intel-levelzero-xpu-jupyter
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -152,7 +152,7 @@ RUN python -m pip install --user --no-cache-dir \
 
 ############## MS2 ##############
 
-FROM intel-levelzero-xpu AS intel-levelzero-xpu-pytorch
+FROM intel-levelzero-xpu-jupyter AS intel-levelzero-xpu-pytorch-jupyter
 
 # -----------------------------------
 # Intel GPU용 PyTorch XPU 설치
@@ -185,3 +185,40 @@ RUN python -m pip install --user --no-cache-dir --force-reinstall \
     "torchvision==${TORCHVISION_VERSION}" \
     "torchaudio==${TORCHAUDIO_VERSION}"
 
+
+############## MS3 ############## 
+
+FROM intel-levelzero-xpu-pytorch-jupyter
+
+# -----------------------------------
+# Jupyter 및 데이터 분석/딥러닝 실습 기본 패키지
+# -----------------------------------
+RUN python -m pip install --user --no-cache-dir \
+    notebook \
+    jupyterlab \
+    ipywidgets
+
+# -----------------------------------
+# Jupyter 기본 설정 디렉토리 생성
+# -----------------------------------
+RUN mkdir -p /home/dev/.jupyter
+
+# -----------------------------------
+# Jupyter 포트 오픈
+# -----------------------------------
+EXPOSE 8888
+
+# -----------------------------------
+# tini init process
+# -----------------------------------
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# -----------------------------------
+# 기본 실행
+# -----------------------------------
+CMD ["jupyter", "lab", \
+     "--ip=0.0.0.0", \
+     "--port=8888", \
+     "--no-browser", \
+     "--ServerApp.token=", \
+     "--ServerApp.allow_origin=*"]
