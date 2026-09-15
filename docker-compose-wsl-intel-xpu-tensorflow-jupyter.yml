@@ -5,10 +5,10 @@ services:
     profiles: ["wsl-intel-xpu-tensorflow-jupyter"]
     ports:
       - "${TENSORFLOW_XPU_HOST_PORT}:8888"
-    build:
-        context: .
-        dockerfile: Dockerfile.intel-opencl-levelzero-xpu-tensorflow-jupyter
-    user: root
+    #build:
+    #    context: .
+        #dockerfile: Dockerfile.intel-opencl-levelzero-xpu-tensorflow-jupyter
+    image: intel-xpu-tensorflow-jupyter:test
     volumes:
       - type: bind
         source: ${SOURCE_PATH}
