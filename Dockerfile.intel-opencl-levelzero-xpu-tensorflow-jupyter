@@ -1,5 +1,4 @@
 ############## MS1 ##############
-
 FROM ubuntu:22.04 AS intel-levelzero-opencl-xpu
 
 # -----------------------------------
@@ -38,25 +37,56 @@ RUN apt-get update && apt-get install -y \
  && rm -rf /var/lib/apt/lists/*
 
 
-# -----------------------------------
-# Intel GPU runtime 저장소
-# Ubuntu 22.04
-# -----------------------------------
+# ============================================================
+# [i7-1260P / Iris Xe (ADL-P, 0x46a6) GPU Runtime]
+#
+# oneAPI 2024.2의 Intel Iris Xe iGPU 지원 기준:
+#   - Ubuntu 22.04
+#   - Level Zero + OpenCL graphics runtime 필요
+#   - oneAPI 2024.2 권장 LTS GPU driver: 2350.63
+#
+# 기존 "jammy arc" 저장소는 오래된 647 runtime을 설치하여
+# OpenCL에서는 Iris Xe가 보이지만 Level Zero device가 열거되지 않았음.
+#
+# 따라서 oneAPI 2024.2 권장 LTS 2350.63 저장소로 고정한다.
+# 주의: 이 설정은 Iris Xe용 oneAPI/SYCL runtime 정합성을 맞추는 것이며,
+#       ITEX 2.15가 WSL2의 Iris Xe를 XPU로 공식 보장한다는 의미는 아니다.
+# ============================================================
 RUN wget -qO - \
-    https://repositories.intel.com/graphics/intel-graphics.key \
-    | gpg --dearmor \
+    https://repositories.intel.com/gpu/intel-graphics.key \
+    | gpg --yes --dearmor \
         --output /usr/share/keyrings/intel-graphics.gpg \
  && echo \
-    "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu jammy arc" \
-    > /etc/apt/sources.list.d/intel.gpu.jammy.list \
- && dpkg --add-architecture i386 \
+    "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy/lts/2350.63 unified" \
+    > /etc/apt/sources.list.d/intel-gpu-jammy.list \
  && apt-get update
 
 
-# -----------------------------------
-# Intel GPU Runtime
-# -----------------------------------
-RUN apt-get update && apt-get install -y \
+# ============================================================
+# Intel Iris Xe Compute Runtime
+#
+# intel-opencl-icd:
+#   OpenCL backend. 현재 Iris Xe [0x46a6] 인식에 사용.
+#
+# intel-level-zero-gpu + level-zero:
+#   Level Zero backend. ITEX XPU가 요구하는 핵심 GPU runtime.
+#
+# level-zero-dev:
+#   Level Zero 개발 헤더/loader 개발 파일.
+#
+# clinfo:
+#   OpenCL GPU 인식 진단.
+#
+# 설치 후 확인:
+#   dpkg-query -W -f='${Package} ${Version}\n' \
+#       intel-opencl-icd intel-level-zero-gpu
+#   sycl-ls
+#
+# 목표:
+#   [opencl:gpu]     Intel(R) Graphics [0x46a6]
+#   [level_zero:gpu] Intel(R) Graphics [0x46a6]
+# ============================================================
+RUN apt-get update && apt-get install -y --no-install-recommends \
     intel-opencl-icd \
     intel-level-zero-gpu \
     level-zero \
@@ -87,14 +117,15 @@ RUN apt-get update && apt-get install -y \
 
 
 # -----------------------------------
-# OpenCL 수준 Intel GPU
+# OpenCL loader / 개발 보조 패키지
+#
+# intel-opencl-icd는 위 Iris Xe Compute Runtime 단계에서
+# LTS 2350.63 저장소 기준으로 이미 설치하므로 여기서 중복 설치하지 않는다.
 # -----------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    clinfo \
     gpg \
     ocl-icd-libopencl1 \
     ocl-icd-opencl-dev \
-    intel-opencl-icd \
     libigc1 \
     libigdfcl1 \
     libigdgmm12 \
@@ -108,21 +139,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # [수정]
 # Intel oneAPI Base Toolkit 2024.2.1
 #
-# 수정 전:
-#   Intel APT repository
-#       ↓
-#   intel-oneapi-runtime-compilers
-#       ↓
-#   현재 2026.1.1 설치
-#
-# 수정 후:
-#   oneAPI Base Toolkit 2024.2.1 고정
+# i7-1260P Iris Xe는 oneAPI 2024.2의 iGFX 지원 대상이며,
+# GPU runtime은 위에서 LTS 2350.63으로 맞춘다.
 # ============================================================
 
 ARG ONEAPI_INSTALLER=l_BaseKit_p_2024.2.1.100_offline.sh
 
 ARG ONEAPI_URL=https://registrationcenter-download.intel.com/akdlm/IRC_NAS/e6ff8e9c-ee28-47fb-abd7-5c524c983e1c/${ONEAPI_INSTALLER}
-
 
 RUN wget -q "${ONEAPI_URL}" \
         -O "/tmp/${ONEAPI_INSTALLER}" \
@@ -165,7 +188,6 @@ RUN echo \
 
 
 # ============================================================
-# [추가]
 # Build 단계에서 oneAPI library 존재 확인
 # ============================================================
 
@@ -205,9 +227,7 @@ ENV HOME=/home/dev
 ENV PATH=/home/dev/.local/bin:$PATH
 ENV XDG_CACHE_HOME=/home/dev/.cache
 
-
 WORKDIR /home/workspace
-
 
 # -----------------------------------
 # pip 최신화
@@ -216,7 +236,6 @@ RUN python -m pip install --user --upgrade \
     pip \
     setuptools \
     wheel
-
 
 # -----------------------------------
 # Python 패키지 설치
@@ -230,32 +249,26 @@ RUN python -m pip install --user --no-cache-dir \
     threadpoolctl
 
 
-
 ############## MS2 ##################
 
-FROM intel-levelzero-opencl-xpu \
-    AS intel-levelzero-opencl-xpu-tensorflow
-
+FROM intel-levelzero-opencl-xpu AS intel-levelzero-opencl-xpu-tensorflow
 
 # ============================================================
 # [수정]
 # TensorFlow + Intel Extension for TensorFlow
 #
 # 수정 전:
-#
 # tensorflow==2.15.1
 # intel-extension-for-tensorflow[xpu]
 #
 # 수정 후:
-#
 # tensorflow==2.15.1
-# intel-extension-for-tensorflow[xpu]==2.15.0.2
+# intel-extension-for-tensorflow[xpu]==2.15.0.1
 # ============================================================
 
 RUN python -m pip install --user --no-cache-dir \
     "tensorflow==2.15.1" \
     "intel-extension-for-tensorflow[xpu]==2.15.0.1"
-
 
 # -----------------------------------
 # Python 패키지 설치
@@ -268,12 +281,9 @@ RUN python -m pip install --user --no-cache-dir \
     wget
 
 
-
 ############## MS3 ##################
 
-FROM intel-levelzero-opencl-xpu-tensorflow \
-    AS intel-levelzero-opencl-xpu-tensorflow_jupyter
-
+FROM intel-levelzero-opencl-xpu-tensorflow AS intel-levelzero-opencl-xpu-tensorflow_jupyter
 
 # -----------------------------------
 # Jupyter 및 데이터 분석/딥러닝 실습
@@ -284,24 +294,20 @@ RUN python -m pip install --user --no-cache-dir \
     ipywidgets \
     ipykernel
 
-
 # -----------------------------------
 # Jupyter 기본 설정 디렉토리
 # -----------------------------------
 RUN mkdir -p /home/dev/.jupyter
-
 
 # -----------------------------------
 # Jupyter 포트
 # -----------------------------------
 EXPOSE 8888
 
-
 # -----------------------------------
 # tini init process
 # -----------------------------------
 ENTRYPOINT ["/usr/bin/tini", "--"]
-
 
 # -----------------------------------
 # 기본 실행
