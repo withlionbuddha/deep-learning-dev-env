@@ -84,7 +84,8 @@ USER root
 
 # ITEX 2.15.0.2.2 requires the SYCL 8 ABI. oneAPI 2025.0 provides
 # libsycl.so.8. Keep the versioned packages so current 2026.x packages do not
-# get selected for the compiler/MKL runtime.
+# get selected for the compiler/MKL runtime. The compiler package also provides
+# sycl-ls so Level Zero/OpenCL enumeration can be diagnosed inside WSL/Docker.
 RUN mkdir -p /usr/share/keyrings \
  && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
     | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
@@ -94,6 +95,7 @@ RUN mkdir -p /usr/share/keyrings \
  && apt-get install -y --no-install-recommends \
     intel-oneapi-compiler-dpcpp-cpp-2025.0 \
     intel-oneapi-mkl-2025.0 \
+ && test -x /opt/intel/oneapi/compiler/2025.0/bin/sycl-ls \
  && rm -rf /var/lib/apt/lists/*
 
 # oneMKL 2025 installs the domain-specific SYCL shared objects under an
@@ -113,7 +115,8 @@ RUN SYCL_LIB="$(find /opt/intel/oneapi \( -type f -o -type l \) -name 'libsycl.s
  && ldconfig -p | grep -F 'libsycl.so.8' \
  && ldconfig -p | grep -F 'libmkl_sycl_blas.so.5'
 
-ENV LD_LIBRARY_PATH=/opt/intel/oneapi/compiler/2025.0/lib:/opt/intel/oneapi/mkl/2025.0/lib:/opt/intel/oneapi/mkl/2025.0/lib/intel64:/usr/lib/wsl/lib
+ENV PATH=/opt/intel/oneapi/compiler/2025.0/bin:$PATH \
+    LD_LIBRARY_PATH=/opt/intel/oneapi/compiler/2025.0/lib:/opt/intel/oneapi/mkl/2025.0/lib:/opt/intel/oneapi/mkl/2025.0/lib/intel64:/usr/lib/wsl/lib
 
 USER dev
 
