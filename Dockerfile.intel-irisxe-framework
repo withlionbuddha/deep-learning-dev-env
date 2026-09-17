@@ -19,7 +19,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     NUMEXPR_NUM_THREADS=6
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    sudo curl wget vim nano tini build-essential gcc g++ make pkg-config \
+    sudo curl wget git vim nano tini build-essential gcc g++ make pkg-config \
     ca-certificates openssh-client iputils-ping net-tools procps gnupg gpg-agent \
     python3 python3-pip python3-venv python-is-python3 \
  && rm -rf /var/lib/apt/lists/*
@@ -46,15 +46,27 @@ RUN apt-get update \
     done \
  && rm -rf /var/lib/apt/lists/*
 
+# ITEX 2.15 XPU requires oneAPI Base Toolkit 2024.1 components.
+# Resolve the exact 2024.1 package revision from Intel's APT repository so that
+# newer oneAPI releases do not silently replace the required SYCL ABI.
 RUN mkdir -p /usr/share/keyrings \
  && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
     | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
  && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
     > /etc/apt/sources.list.d/oneAPI.list \
  && apt-get update \
- && apt-get install -y --no-install-recommends intel-oneapi-runtime-compilers \
+ && DPCPP_VERSION="$(apt-cache madison intel-oneapi-compiler-dpcpp-cpp | awk '$3 ~ /^2024\\.1/ {print $3; exit}')" \
+ && MKL_VERSION="$(apt-cache madison intel-oneapi-mkl | awk '$3 ~ /^2024\\.1/ {print $3; exit}')" \
+ && test -n "$DPCPP_VERSION" \
+ && test -n "$MKL_VERSION" \
+ && apt-get install -y --no-install-recommends \
+    "intel-oneapi-compiler-dpcpp-cpp=${DPCPP_VERSION}" \
+    "intel-oneapi-mkl=${MKL_VERSION}" \
  && rm -rf /var/lib/apt/lists/* \
- && find /opt/intel/oneapi -name "libimf.so*" -exec dirname {} \; | sort -u > /etc/ld.so.conf.d/intel-oneapi.conf \
+ && find /opt/intel/oneapi -name "libsycl.so*" -print \
+ && test -n "$(find /opt/intel/oneapi -name 'libsycl.so.8' -print -quit)" \
+ && echo '/opt/intel/oneapi/compiler/2024.1/lib' > /etc/ld.so.conf.d/intel-oneapi.conf \
+ && echo '/opt/intel/oneapi/mkl/2024.1/lib' >> /etc/ld.so.conf.d/intel-oneapi.conf \
  && ldconfig
 
 RUN useradd -m -s /bin/bash dev \
@@ -65,6 +77,7 @@ RUN useradd -m -s /bin/bash dev \
 USER dev
 WORKDIR /home/workspace
 
+# Common Python/Jupyter environment inherited by both framework stages.
 RUN python -m pip install --user --upgrade pip setuptools wheel \
  && python -m pip install --user --no-cache-dir \
     numpy pandas matplotlib scikit-learn threadpoolctl wget \
@@ -92,9 +105,9 @@ ENV DEEP_LEARNING_FRAMEWORK=pytorch
 ############## TensorFlow ##############
 FROM intel-irisxe-base AS tensorflow
 
-# TensorFlow 2.15.1 + latest available ITEX 2.15 patch release on the configured pip index.
-# Iris Xe 0x46a6 XPU availability still requires runtime verification.
-ARG TENSORFLOW_VERSION=2.15.1
+# Intel ITEX 2.15 XPU software requirements:
+# Ubuntu 22.04 / Python 3.9-3.11 / TensorFlow 2.15.0 / oneAPI Base Toolkit 2024.1.
+ARG TENSORFLOW_VERSION=2.15.0
 ARG ITEX_VERSION=2.15.0.2
 
 ENV TF_ENABLE_ONEDNN_OPTS=1 \
