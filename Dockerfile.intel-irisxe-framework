@@ -82,57 +82,25 @@ FROM intel-irisxe-base AS tensorflow
 
 USER root
 
-ARG ONEAPI_DPCPP_VERSION=2024.1.2-995
-ARG ONEAPI_MKL_VERSION=2024.1.0-691
+# ITEX 2.15.0.2.2 loads libsycl.so.8. Intel documents the SYCL runtime ABI
+# major bump to 8 in oneAPI DPC++/C++ Compiler 2025.0, so use the 2025
+# compiler/SYCL runtime here instead of the 2024.1 runtime (libsycl.so.7).
 RUN mkdir -p /usr/share/keyrings \
  && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
     | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
  && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
     > /etc/apt/sources.list.d/oneAPI.list \
  && apt-get update \
- && for pkg in \
-      intel-oneapi-runtime-compilers-2024 \
-      intel-oneapi-runtime-compilers-common-2024 \
-      intel-oneapi-runtime-dpcpp-cpp-2024 \
-      intel-oneapi-runtime-dpcpp-cpp-common-2024 \
-      intel-oneapi-runtime-dpcpp-sycl-core-2024 \
-      intel-oneapi-runtime-dpcpp-sycl-cpu-rt-2024 \
-      intel-oneapi-runtime-dpcpp-sycl-fpga-emul-2024 \
-      intel-oneapi-runtime-dpcpp-sycl-opencl-cpu-2024 \
-      intel-oneapi-runtime-dpcpp-sycl-rt-2024 \
-      intel-oneapi-runtime-opencl-2024 \
-      intel-oneapi-runtime-openmp-2024 \
-      intel-oneapi-runtime-openmp-opencl-shared-2024; do \
-      apt-cache madison "$pkg" | grep -F "${ONEAPI_DPCPP_VERSION}" >/dev/null || { echo "Missing ${pkg}=${ONEAPI_DPCPP_VERSION}"; exit 1; }; \
-    done \
- && apt-cache madison intel-oneapi-runtime-mkl-common-2024 | grep -F "${ONEAPI_MKL_VERSION}" >/dev/null \
- && apt-cache madison intel-oneapi-runtime-mkl-2024 | grep -F "${ONEAPI_MKL_VERSION}" >/dev/null \
  && apt-get install -y --no-install-recommends \
-    "intel-oneapi-runtime-compilers-2024=${ONEAPI_DPCPP_VERSION}" \
-    "intel-oneapi-runtime-compilers-common-2024=${ONEAPI_DPCPP_VERSION}" \
-    "intel-oneapi-runtime-dpcpp-cpp-2024=${ONEAPI_DPCPP_VERSION}" \
-    "intel-oneapi-runtime-dpcpp-cpp-common-2024=${ONEAPI_DPCPP_VERSION}" \
-    "intel-oneapi-runtime-dpcpp-sycl-core-2024=${ONEAPI_DPCPP_VERSION}" \
-    "intel-oneapi-runtime-dpcpp-sycl-cpu-rt-2024=${ONEAPI_DPCPP_VERSION}" \
-    "intel-oneapi-runtime-dpcpp-sycl-fpga-emul-2024=${ONEAPI_DPCPP_VERSION}" \
-    "intel-oneapi-runtime-dpcpp-sycl-opencl-cpu-2024=${ONEAPI_DPCPP_VERSION}" \
-    "intel-oneapi-runtime-dpcpp-sycl-rt-2024=${ONEAPI_DPCPP_VERSION}" \
-    "intel-oneapi-runtime-opencl-2024=${ONEAPI_DPCPP_VERSION}" \
-    "intel-oneapi-runtime-openmp-2024=${ONEAPI_DPCPP_VERSION}" \
-    "intel-oneapi-runtime-openmp-opencl-shared-2024=${ONEAPI_DPCPP_VERSION}" \
-    "intel-oneapi-runtime-mkl-common-2024=${ONEAPI_MKL_VERSION}" \
-    "intel-oneapi-runtime-mkl-2024=${ONEAPI_MKL_VERSION}" \
+    intel-oneapi-runtime-dpcpp-cpp-2025 \
+    intel-oneapi-runtime-mkl-2025 \
  && rm -rf /var/lib/apt/lists/*
 
-# Runtime packages install their libraries under /opt/intel/oneapi/redist/lib.
-# Register every actual library directory with the dynamic linker.  Do not
-# require libmkl_sycl.so: the 2024.1 MKL runtime package does not guarantee
-# that filename even though ITEX requires the DPC++/SYCL runtime libraries.
-RUN find /opt/intel/oneapi -type f -o -type l | grep -F 'libsycl.so' \
- && find /opt/intel/oneapi -type f -o -type l | grep -F 'libmkl_' \
- && find /opt/intel/oneapi -type f -o -type l | sed 's#/[^/]*$##' | sort -u > /etc/ld.so.conf.d/intel-oneapi.conf \
+RUN SYCL_LIB="$(find /opt/intel/oneapi -name 'libsycl.so.8' -print -quit)" \
+ && test -n "${SYCL_LIB}" \
+ && find /opt/intel/oneapi \( -type f -o -type l \) | sed 's#/[^/]*$##' | sort -u > /etc/ld.so.conf.d/intel-oneapi.conf \
  && ldconfig \
- && ldconfig -p | grep -F 'libsycl.so'
+ && ldconfig -p | grep -F 'libsycl.so.8'
 
 USER dev
 
@@ -146,7 +114,8 @@ RUN python -m pip install --user --no-cache-dir \
     "tensorflow==${TENSORFLOW_VERSION}" \
     "intel-extension-for-tensorflow[xpu]==${ITEX_VERSION}" \
  && python -m pip check \
- && python -c "import intel_extension_for_tensorflow as itex; print('ITEX:', itex.__version__)"
+ && python -c "import intel_extension_for_tensorflow as itex; print('ITEX:', itex.__version__)" \
+ && python -c "import tensorflow as tf; print('TensorFlow:', tf.__version__); print('Devices:', tf.config.list_physical_devices())"
 
 ENV DEEP_LEARNING_FRAMEWORK=tensorflow
 
