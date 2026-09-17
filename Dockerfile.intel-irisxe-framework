@@ -96,19 +96,24 @@ RUN mkdir -p /usr/share/keyrings \
     intel-oneapi-mkl-2025.0 \
  && rm -rf /var/lib/apt/lists/*
 
+# oneMKL 2025 installs the domain-specific SYCL shared objects under an
+# intel64 subdirectory on current packages. ITEX needs the SONAME'd BLAS
+# library (libmkl_sycl_blas.so.5), not only the libmkl_sycl.so linker script.
 RUN SYCL_LIB="$(find /opt/intel/oneapi \( -type f -o -type l \) -name 'libsycl.so.8' -print -quit)" \
- && MKL_SYCL_LIB="$(find /opt/intel/oneapi \( -type f -o -type l \) -name 'libmkl_sycl.so' -print -quit)" \
+ && MKL_SYCL_BLAS="$(find /opt/intel/oneapi \( -type f -o -type l \) -name 'libmkl_sycl_blas.so.5' -print -quit)" \
  && echo "SYCL_LIB=${SYCL_LIB}" \
- && echo "MKL_SYCL_LIB=${MKL_SYCL_LIB}" \
+ && echo "MKL_SYCL_BLAS=${MKL_SYCL_BLAS}" \
  && test -n "${SYCL_LIB}" \
  && test -e "${SYCL_LIB}" \
- && test -n "${MKL_SYCL_LIB}" \
- && test -e "${MKL_SYCL_LIB}" \
+ && test -n "${MKL_SYCL_BLAS}" \
+ && test -e "${MKL_SYCL_BLAS}" \
  && dirname "${SYCL_LIB}" > /etc/ld.so.conf.d/intel-oneapi-sycl.conf \
+ && dirname "${MKL_SYCL_BLAS}" > /etc/ld.so.conf.d/intel-oneapi-mkl-sycl.conf \
  && ldconfig \
- && ldconfig -p | grep -F 'libsycl.so.8'
+ && ldconfig -p | grep -F 'libsycl.so.8' \
+ && ldconfig -p | grep -F 'libmkl_sycl_blas.so.5'
 
-ENV LD_LIBRARY_PATH=/opt/intel/oneapi/compiler/2025.0/lib:/opt/intel/oneapi/mkl/2025.0/lib:/usr/lib/wsl/lib
+ENV LD_LIBRARY_PATH=/opt/intel/oneapi/compiler/2025.0/lib:/opt/intel/oneapi/mkl/2025.0/lib:/opt/intel/oneapi/mkl/2025.0/lib/intel64:/usr/lib/wsl/lib
 
 USER dev
 
