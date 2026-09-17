@@ -96,21 +96,23 @@ RUN mkdir -p /usr/share/keyrings \
     intel-oneapi-mkl-2025.0 \
  && rm -rf /var/lib/apt/lists/*
 
-# libsycl.so.8 is normally a symlink to the concrete SYCL shared object, so do
-# not restrict find to regular files. Resolve both runtime paths and register
-# only their containing directories with ldconfig.
+# Verify the required runtime entries. libmkl_sycl.so can be a GNU ld linker
+# script rather than an ELF shared object, so do not ask ldconfig to parse the
+# MKL directory. Register the SYCL directory with ldconfig and expose both
+# directories through LD_LIBRARY_PATH for ITEX.
 RUN SYCL_LIB="$(find /opt/intel/oneapi \( -type f -o -type l \) -name 'libsycl.so.8' -print -quit)" \
- && MKL_SYCL_LIB="$(find /opt/intel/oneapi \( -type f -o -type l \) -name 'libmkl_sycl.so*' -print -quit)" \
+ && MKL_SYCL_LIB="$(find /opt/intel/oneapi \( -type f -o -type l \) -name 'libmkl_sycl.so' -print -quit)" \
  && echo "SYCL_LIB=${SYCL_LIB}" \
  && echo "MKL_SYCL_LIB=${MKL_SYCL_LIB}" \
  && test -n "${SYCL_LIB}" \
  && test -e "${SYCL_LIB}" \
  && test -n "${MKL_SYCL_LIB}" \
  && test -e "${MKL_SYCL_LIB}" \
- && printf '%s\n' "$(dirname "${SYCL_LIB}")" "$(dirname "${MKL_SYCL_LIB}")" > /etc/ld.so.conf.d/intel-oneapi.conf \
+ && dirname "${SYCL_LIB}" > /etc/ld.so.conf.d/intel-oneapi-sycl.conf \
  && ldconfig \
- && ldconfig -p | grep -F 'libsycl.so.8' \
- && ldconfig -p | grep -F 'libmkl_sycl.so'
+ && ldconfig -p | grep -F 'libsycl.so.8'
+
+ENV LD_LIBRARY_PATH=/opt/intel/oneapi/compiler/2025.0/lib:/opt/intel/oneapi/mkl/2025.0/lib:/usr/lib/wsl/lib
 
 USER dev
 
