@@ -82,10 +82,6 @@ FROM intel-irisxe-base AS tensorflow
 
 USER root
 
-# ITEX 2.15 needs oneAPI 2024.1. Intel's repository keeps multiple 2024.x
-# revisions under the same package names, so install the complete DPC++ runtime
-# dependency set at the exact 2024.1.2 revision instead of relying on APT's
-# transitive dependency selection.
 ARG ONEAPI_DPCPP_VERSION=2024.1.2-995
 ARG ONEAPI_MKL_VERSION=2024.1.0-691
 RUN mkdir -p /usr/share/keyrings \
@@ -128,14 +124,15 @@ RUN mkdir -p /usr/share/keyrings \
     "intel-oneapi-runtime-mkl-2024=${ONEAPI_MKL_VERSION}" \
  && rm -rf /var/lib/apt/lists/*
 
-RUN SYCL_LIB="$(find /opt/intel/oneapi -name 'libsycl.so.8' -print -quit)" \
- && MKL_SYCL_LIB="$(find /opt/intel/oneapi -name 'libmkl_sycl.so*' -print -quit)" \
- && test -n "${SYCL_LIB}" \
- && test -n "${MKL_SYCL_LIB}" \
- && printf '%s\n' "$(dirname "${SYCL_LIB}")" > /etc/ld.so.conf.d/intel-oneapi-sycl.conf \
- && printf '%s\n' "$(dirname "${MKL_SYCL_LIB}")" > /etc/ld.so.conf.d/intel-oneapi-mkl.conf \
+# Runtime packages install their libraries under /opt/intel/oneapi/redist/lib.
+# Register every actual library directory with the dynamic linker.  Do not
+# require libmkl_sycl.so: the 2024.1 MKL runtime package does not guarantee
+# that filename even though ITEX requires the DPC++/SYCL runtime libraries.
+RUN find /opt/intel/oneapi -type f -o -type l | grep -F 'libsycl.so' \
+ && find /opt/intel/oneapi -type f -o -type l | grep -F 'libmkl_' \
+ && find /opt/intel/oneapi -type f -o -type l | sed 's#/[^/]*$##' | sort -u > /etc/ld.so.conf.d/intel-oneapi.conf \
  && ldconfig \
- && ldconfig -p | grep -F 'libsycl.so.8'
+ && ldconfig -p | grep -F 'libsycl.so'
 
 USER dev
 
