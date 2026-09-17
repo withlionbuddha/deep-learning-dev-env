@@ -46,9 +46,10 @@ RUN apt-get update \
     done \
  && rm -rf /var/lib/apt/lists/*
 
-# ITEX 2.15 requires the oneAPI 2024.1 runtime generation. Year-named Intel
-# packages have newer 2024.x revisions in the same repository, so every direct
-# runtime dependency must be pinned to the matching 2024.1 revision.
+# ITEX 2.15 requires oneAPI 2024.1. Pin the whole 2024 runtime dependency
+# graph, not only the top-level packages: otherwise APT mixes 2024.1 meta
+# packages with current 2024.2 SYCL/compiler runtimes and dpkg hits file
+# conflicts (for example Intel_FPGA_SSG_Emulator.icd).
 ARG ONEAPI_DPCPP_VERSION=2024.1.2-995
 ARG ONEAPI_MKL_VERSION=2024.1.0-691
 RUN mkdir -p /usr/share/keyrings \
@@ -56,14 +57,19 @@ RUN mkdir -p /usr/share/keyrings \
     | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
  && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
     > /etc/apt/sources.list.d/oneAPI.list \
+ && printf '%s\n' \
+    'Package: intel-oneapi-runtime-*-2024' \
+    'Pin: version 2024.1*' \
+    'Pin-Priority: 1001' \
+    > /etc/apt/preferences.d/oneapi-2024.1 \
  && apt-get update \
  && apt-cache madison intel-oneapi-runtime-dpcpp-cpp-2024 | grep -F "${ONEAPI_DPCPP_VERSION}" \
  && apt-cache madison intel-oneapi-runtime-mkl-2024 | grep -F "${ONEAPI_MKL_VERSION}" \
- && apt-cache madison intel-oneapi-runtime-mkl-common-2024 | grep -F "${ONEAPI_MKL_VERSION}" \
+ && apt-cache policy intel-oneapi-runtime-dpcpp-sycl-core-2024 \
  && apt-get install -y --no-install-recommends \
-    "intel-oneapi-runtime-mkl-common-2024=${ONEAPI_MKL_VERSION}" \
-    "intel-oneapi-runtime-mkl-2024=${ONEAPI_MKL_VERSION}" \
     "intel-oneapi-runtime-dpcpp-cpp-2024=${ONEAPI_DPCPP_VERSION}" \
+    "intel-oneapi-runtime-mkl-2024=${ONEAPI_MKL_VERSION}" \
+ && ! dpkg-query -W -f='${Package} ${Version}\n' 'intel-oneapi-runtime-*-2024' 2>/dev/null | grep -E ' 2024\.2' \
  && SYCL_LIB="$(find /opt/intel/oneapi -name 'libsycl.so.8' -print -quit)" \
  && test -n "${SYCL_LIB}" \
  && SYCL_LIB_DIR="$(dirname "${SYCL_LIB}")" \
