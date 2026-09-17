@@ -5,8 +5,8 @@ services:
     profiles: ["wsl-intel-xpu-tensorflow"]
     image: intel-opencl-levelzero-xpu-tensorflow:latest
     build:
-        context: .
-        dockerfile: Dockerfile.intel-opencl-levelzero-xpu-tensorflow
+      context: .
+      dockerfile: Dockerfile.intel-opencl-levelzero-xpu-tensorflow
     user: root
     volumes:
       - type: bind
@@ -16,18 +16,18 @@ services:
         source: ${DRIVE_PATH}
         target: /home/drive
         read_only: true
-      - type : bind
+      - type: bind
         source: /usr/lib/wsl
         target: /usr/lib/wsl
         read_only: true
-      - type : bind
-        source : ${AI_COMPUTE_BENCHMARK_PATH}
-        target : /home/workspace/ai-compute-benchmark
+      - type: bind
+        source: ${AI_COMPUTE_BENCHMARK_PATH}
+        target: /home/workspace/ai-compute-benchmark
     environment:
       PYTHONUNBUFFERED: "1"
-      LD_LIBRARY_PATH: "/usr/lib/wsl/lib"
+      TF_ENABLE_ONEDNN_OPTS: "1"
+      UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS: "1"
     working_dir: /home/workspace
     devices:
       - /dev/dxg:/dev/dxg
     restart: unless-stopped
-    
