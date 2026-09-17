@@ -1,183 +1,90 @@
-############## MS1 ############## 
+# syntax=docker/dockerfile:1.7
 
-FROM ubuntu:22.04 AS intel-levelzero-opencl-xpu
-# -----------------------------------
-# 기본 환경 변수
-# -----------------------------------
-ENV DEBIAN_FRONTEND=noninteractive
+FROM ubuntu:22.04 AS intel-levelzero-opencl-xpu-tensorflow
 
-ENV HOME=/home/dev
-ENV SHELL=/bin/bash
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-ENV PATH=/home/dev/.local/bin:$PATH
-ENV XDG_CACHE_HOME=/home/dev/.cache
+ENV DEBIAN_FRONTEND=noninteractive \
+    HOME=/home/dev \
+    SHELL=/bin/bash \
+    PATH=/home/dev/.local/bin:$PATH \
+    XDG_CACHE_HOME=/home/dev/.cache \
+    OMP_NUM_THREADS=6 \
+    MKL_NUM_THREADS=6 \
+    OPENBLAS_NUM_THREADS=6 \
+    NUMEXPR_NUM_THREADS=6
 
-# -----------------------------------
-# 시스템 패키지 설치
-# -----------------------------------
-RUN apt-get update && apt-get install -y \
-    sudo \
-    curl \
-    wget \
-    vim \
-    nano \
-    tini \
-    build-essential \
-    gcc \
-    g++ \
-    make \
-    pkg-config \
-    ca-certificates \
-    openssh-client \
-    iputils-ping \
-    net-tools \
-    procps \
-    gnupg \
-    python3 \
-    python3-pip \
-    python3-venv \
-    python-is-python3 \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    sudo curl wget git vim nano tini build-essential gcc g++ make pkg-config \
+    ca-certificates openssh-client iputils-ping net-tools procps gnupg gpg-agent \
+    python3 python3-pip python3-venv python-is-python3 \
  && rm -rf /var/lib/apt/lists/*
 
-#-----------------------------------
-# Intel GPU runtime 패키지를 apt로 설치할 수 있게 저장소를 추가 (ubuntu 22.04)
-#-----------------------------------
- RUN wget -qO - https://repositories.intel.com/graphics/intel-graphics.key | \
+# Intel Iris Xe OpenCL + Level Zero runtime for Ubuntu 22.04 / WSL2.
+RUN wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | \
     gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg \
- && echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu jammy arc" \
-    > /etc/apt/sources.list.d/intel.gpu.jammy.list \
+ && echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy client" \
+    > /etc/apt/sources.list.d/intel-gpu-jammy.list \
  && dpkg --add-architecture i386 \
- && apt-get update
-  
-#-----------------------------------
-# Intel GPU Runtime (필수)
-#-----------------------------------
-RUN apt-get update && apt-get install -y \
-    intel-opencl-icd \
-    intel-level-zero-gpu \
-    level-zero \
-    level-zero-dev \
-    clinfo \
- && rm -rf /var/lib/apt/lists/*
- 
-#-----------------------------------
-# Intel GPU Runtime (미디어/GUI/OpenVINO 계열)
-#-----------------------------------
-RUN apt-get update && apt-get install -y \
-    intel-media-va-driver-non-free \
-    libmfx1 \
-    libmfxgen1 \
-    libvpl2 \
-    libegl-mesa0 \
-    libegl1-mesa \
-    libgbm1 \
-    libgl1-mesa-dri \
-    libglx-mesa0 \
-    libigdgmm12 \
-    mesa-va-drivers \
-    mesa-vulkan-drivers \
-    va-driver-all \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+    intel-opencl-icd intel-level-zero-gpu clinfo \
+ && for pkg in libze1 libze-dev intel-ocloc intel-level-zero-gpu-dev level-zero level-zero-dev libigc1 intel-igc-cm libigdgmm12; do \
+      apt-get install -y --no-install-recommends "$pkg" || true; \
+    done \
  && rm -rf /var/lib/apt/lists/*
 
-# -----------------------------------
-# OpenCL 수준 Intel GPU 
-# -----------------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    clinfo \
-    gpg \
-    ocl-icd-libopencl1 \
-    ocl-icd-opencl-dev \
-    intel-opencl-icd \
-    libigc1 \
-    libigdfcl1 \
-    libigdgmm12 \
-    libgl1 \
-    libglib2.0-0 \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# -----------------------------------
-# Intel oneAPI runtime 설치
-# -----------------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
-    gpg \
-    ca-certificates \
-    && mkdir -p /usr/share/keyrings \
-    && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+# ITEX 2.15.0.2 uses the SYCL 8 ABI. Pin the verified oneAPI 2025.0 stack.
+RUN mkdir -p /usr/share/keyrings \
+ && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
     | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
+ && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
     > /etc/apt/sources.list.d/oneAPI.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
-        intel-oneapi-runtime-compilers \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+    intel-oneapi-compiler-dpcpp-cpp-2025.0 \
+    intel-oneapi-mkl-2025.0 \
+ && test -x /opt/intel/oneapi/compiler/2025.0/bin/sycl-ls \
+ && rm -rf /var/lib/apt/lists/*
 
-# -----------------------------------
-# libimf.so 경로 등록
-# -----------------------------------
-RUN find /opt/intel/oneapi -name "libimf.so*" -print \
-    && find /opt/intel/oneapi -name "libimf.so*" -exec dirname {} \; \
-    | sort -u > /etc/ld.so.conf.d/intel-oneapi.conf \
-    && ldconfig
+# Register the exact shared-library locations required by SYCL/UR and ITEX.
+RUN SYCL_LIB="$(find /opt/intel/oneapi \( -type f -o -type l \) -name 'libsycl.so.8' -print -quit)" \
+ && MKL_SYCL_BLAS="$(find /opt/intel/oneapi \( -type f -o -type l \) -name 'libmkl_sycl_blas.so.5' -print -quit)" \
+ && UMF_LIB="$(find /opt/intel/oneapi \( -type f -o -type l \) -name 'libumf.so.0' -print -quit)" \
+ && test -n "${SYCL_LIB}" && test -e "${SYCL_LIB}" \
+ && test -n "${MKL_SYCL_BLAS}" && test -e "${MKL_SYCL_BLAS}" \
+ && test -n "${UMF_LIB}" && test -e "${UMF_LIB}" \
+ && dirname "${SYCL_LIB}" > /etc/ld.so.conf.d/intel-oneapi-sycl.conf \
+ && dirname "${MKL_SYCL_BLAS}" > /etc/ld.so.conf.d/intel-oneapi-mkl-sycl.conf \
+ && dirname "${UMF_LIB}" > /etc/ld.so.conf.d/intel-oneapi-umf.conf \
+ && ldconfig \
+ && ldconfig -p | grep -F 'libsycl.so.8' \
+ && ldconfig -p | grep -F 'libmkl_sycl_blas.so.5' \
+ && ldconfig -p | grep -F 'libumf.so.0'
 
+ENV PATH=/opt/intel/oneapi/compiler/2025.0/bin:$PATH \
+    LD_LIBRARY_PATH=/opt/intel/oneapi/compiler/2025.0/lib:/opt/intel/oneapi/mkl/2025.0/lib:/opt/intel/oneapi/mkl/2025.0/lib/intel64:/opt/intel/oneapi/umf/0.9/lib:/usr/lib/wsl/lib \
+    TF_ENABLE_ONEDNN_OPTS=1 \
+    UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS=1 \
+    DEEP_LEARNING_FRAMEWORK=tensorflow
 
-# -----------------------------------
-# 일반 사용자 생성
-# -----------------------------------
 RUN useradd -m -s /bin/bash dev \
- && echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+ && echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
+ && mkdir -p /home/workspace \
+ && chown -R dev:dev /home/workspace /home/dev
 
-# -----------------------------------
-# 작업 디렉토리 생성
-# -----------------------------------
-RUN mkdir -p /home/workspace \
- && chown -R dev:dev /home/workspace
-
-# -----------------------------------
-# 사용자 전환
-# -----------------------------------
 USER dev
-
 WORKDIR /home/workspace
 
-# -----------------------------------
-# pip 최신화
-# -----------------------------------
-RUN python -m pip install --user --upgrade \
-    pip \
-    setuptools \
-    wheel
+ARG TENSORFLOW_VERSION=2.15.0
+ARG ITEX_VERSION=2.15.0.2
 
-# -----------------------------------
-# Python 패키지 설치
-# -----------------------------------
-RUN python -m pip install --user --no-cache-dir \
-    numpy \
-    pandas \
-    matplotlib \
-    scikit-learn \
-    wget \
-    threadpoolctl
+RUN python -m pip install --user --upgrade pip setuptools wheel \
+ && python -m pip install --user --no-cache-dir \
+    numpy pandas matplotlib scikit-learn threadpoolctl wget \
+    "tensorflow==${TENSORFLOW_VERSION}" \
+    "intel-extension-for-tensorflow[xpu]==${ITEX_VERSION}" \
+ && python -m pip check \
+ && python -c "import importlib.metadata as m; print('TensorFlow:', m.version('tensorflow')); print('ITEX:', m.version('intel-extension-for-tensorflow')); print('ITEX lib:', m.version('intel-extension-for-tensorflow-lib'))"
 
-############## MS2 ##################
-FROM intel-levelzero-opencl-xpu AS intel-levelzero-opencl-xpu-tensorflow
-
-# -----------------------------------
-# Intel TensorFlow XPU 설치
-# Intel Extension for TensorFlow는 stock TensorFlow 2.15.x 계열과 맞춰 사용
-# -----------------------------------
-RUN python -m pip install --user --no-cache-dir \
-    tensorflow==2.15.1 \
-    "intel-extension-for-tensorflow[xpu]"
-
-# -----------------------------------
-# Python 패키지 설치
-# -----------------------------------
-RUN python -m pip install --user --no-cache-dir \
-    numpy \
-    pandas \
-    matplotlib \
-    scikit-learn \
-    wget
+CMD ["sleep", "infinity"]
