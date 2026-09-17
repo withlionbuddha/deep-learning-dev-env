@@ -82,10 +82,9 @@ FROM intel-irisxe-base AS tensorflow
 
 USER root
 
-# ITEX 2.15.0.2.2 loads libsycl.so.8. Intel's 2025 compiler documentation
-# lists libsycl.so.8 as the SYCL redistribution library. Current Intel APT
-# uses the unversioned product package names below; the old
-# intel-oneapi-runtime-*-2025 package names are not present in the repository.
+# ITEX 2.15.0.2.2 requires the SYCL 8 ABI. oneAPI 2025.0 introduced
+# libsycl.so.8. Do not use the unversioned meta packages here: in 2026 they
+# resolve to oneAPI 2026.x, which is another ABI-breaking SYCL release.
 RUN mkdir -p /usr/share/keyrings \
  && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
     | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
@@ -93,18 +92,22 @@ RUN mkdir -p /usr/share/keyrings \
     > /etc/apt/sources.list.d/oneAPI.list \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
-    intel-oneapi-compiler-dpcpp-cpp \
-    intel-oneapi-mkl \
+    intel-oneapi-compiler-dpcpp-cpp-2025.0 \
+    intel-oneapi-mkl-2025.0 \
  && rm -rf /var/lib/apt/lists/*
 
-# Fail during image build unless the installed compiler runtime really exposes
-# the ABI required by ITEX. Register the actual oneAPI library directories so
-# non-interactive Python processes do not depend on sourcing setvars.sh.
-RUN SYCL_LIB="$(find /opt/intel/oneapi -name 'libsycl.so.8' -print -quit)" \
+# Register the exact oneAPI 2025 runtime directories. Print the resolved
+# libraries so the build log shows which ABI was actually installed.
+RUN SYCL_LIB="$(find /opt/intel/oneapi -type f -name 'libsycl.so.8' -print -quit)" \
+ && MKL_SYCL_LIB="$(find /opt/intel/oneapi -type f -name 'libmkl_sycl.so*' -print -quit)" \
+ && echo "SYCL_LIB=${SYCL_LIB}" \
+ && echo "MKL_SYCL_LIB=${MKL_SYCL_LIB}" \
  && test -n "${SYCL_LIB}" \
- && find /opt/intel/oneapi \( -type f -o -type l \) | sed 's#/[^/]*$##' | sort -u > /etc/ld.so.conf.d/intel-oneapi.conf \
+ && test -n "${MKL_SYCL_LIB}" \
+ && printf '%s\n' "$(dirname "${SYCL_LIB}")" "$(dirname "${MKL_SYCL_LIB}")" > /etc/ld.so.conf.d/intel-oneapi.conf \
  && ldconfig \
- && ldconfig -p | grep -F 'libsycl.so.8'
+ && ldconfig -p | grep -F 'libsycl.so.8' \
+ && ldconfig -p | grep -F 'libmkl_sycl.so'
 
 USER dev
 
