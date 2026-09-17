@@ -8,7 +8,11 @@
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.15.0-FF6F00)](https://www.tensorflow.org/)
 [![oneAPI](https://img.shields.io/badge/oneAPI-2025.0-0071C5)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/overview.html)
 
-> 이 저장소는 Windows + WSL2 + Docker Desktop에서 Intel Iris Xe를 이용해 PyTorch XPU와 TensorFlow XPU 개발 환경을 구성하는 저장소입니다.
+> Windows + WSL2 + Docker Desktop 및 Linux 환경에서 **딥러닝·AI 개발과 하드웨어 가속 실험을 위한 컨테이너 기반 개발 환경**을 구성하는 저장소입니다.
+>
+> Intel Iris Xe XPU와 NVIDIA CUDA GPU를 대상으로 PyTorch, TensorFlow, OpenVINO 등의 프레임워크를 실행할 수 있도록 **Dockerfile, Docker Compose, VS Code Dev Container 및 Jupyter 개발 환경**을 목적별로 구성하고 관리합니다.
+>
+> 특히 Intel Iris Xe 환경에서는 Level Zero, OpenCL, oneAPI/SYCL 기반 XPU 가속 환경을 구성하고, 프레임워크별 하드웨어 인식과 연산 동작을 검증합니다.
 >
 > 이전 README는 [`README-v0.1.0.md`](README-v0.1.0.md)에 보관합니다.
 
