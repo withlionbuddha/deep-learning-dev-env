@@ -96,10 +96,6 @@ RUN mkdir -p /usr/share/keyrings \
     intel-oneapi-mkl-2025.0 \
  && rm -rf /var/lib/apt/lists/*
 
-# Verify the required runtime entries. libmkl_sycl.so can be a GNU ld linker
-# script rather than an ELF shared object, so do not ask ldconfig to parse the
-# MKL directory. Register the SYCL directory with ldconfig and expose both
-# directories through LD_LIBRARY_PATH for ITEX.
 RUN SYCL_LIB="$(find /opt/intel/oneapi \( -type f -o -type l \) -name 'libsycl.so.8' -print -quit)" \
  && MKL_SYCL_LIB="$(find /opt/intel/oneapi \( -type f -o -type l \) -name 'libmkl_sycl.so' -print -quit)" \
  && echo "SYCL_LIB=${SYCL_LIB}" \
@@ -122,12 +118,14 @@ ARG ITEX_VERSION=2.15.0.2
 ENV TF_ENABLE_ONEDNN_OPTS=1 \
     UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS=1
 
+# BuildKit does not expose the Compose /dev/dxg device to RUN steps. Installing
+# the XPU plugin is therefore validated here by package/dependency checks only;
+# ITEX import and device enumeration belong to the running container.
 RUN python -m pip install --user --no-cache-dir \
     "tensorflow==${TENSORFLOW_VERSION}" \
     "intel-extension-for-tensorflow[xpu]==${ITEX_VERSION}" \
  && python -m pip check \
- && python -c "import intel_extension_for_tensorflow as itex; print('ITEX:', itex.__version__)" \
- && python -c "import tensorflow as tf; print('TensorFlow:', tf.__version__); print('Devices:', tf.config.list_physical_devices())"
+ && python -c "import importlib.metadata as m; print('TensorFlow:', m.version('tensorflow')); print('ITEX:', m.version('intel-extension-for-tensorflow')); print('ITEX lib:', m.version('intel-extension-for-tensorflow-lib'))"
 
 ENV DEEP_LEARNING_FRAMEWORK=tensorflow
 
