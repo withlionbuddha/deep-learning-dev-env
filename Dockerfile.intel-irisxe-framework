@@ -24,7 +24,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip python3-venv python-is-python3 \
  && rm -rf /var/lib/apt/lists/*
 
-# Intel GPU client repository: shared by PyTorch XPU and TensorFlow ITEX.
 RUN wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | \
     gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg \
  && echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy client" \
@@ -83,11 +82,10 @@ FROM intel-irisxe-base AS tensorflow
 
 USER root
 
-# ITEX 2.15 needs the oneAPI 2024.1 generation. The Intel repository also
-# contains later 2024.x revisions under the same package names, so pin every
-# DPC++/compiler/OpenMP/OpenCL dependency family used by the 2024.1 runtime.
-# This prevents APT from mixing a 2024.1 top-level package with 2024.2
-# transitive packages (which causes file collisions during dpkg unpack).
+# ITEX 2.15 needs oneAPI 2024.1. Intel's repository keeps multiple 2024.x
+# revisions under the same package names, so install the complete DPC++ runtime
+# dependency set at the exact 2024.1.2 revision instead of relying on APT's
+# transitive dependency selection.
 ARG ONEAPI_DPCPP_VERSION=2024.1.2-995
 ARG ONEAPI_MKL_VERSION=2024.1.0-691
 RUN mkdir -p /usr/share/keyrings \
@@ -95,21 +93,37 @@ RUN mkdir -p /usr/share/keyrings \
     | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
  && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
     > /etc/apt/sources.list.d/oneAPI.list \
- && printf '%s\n' \
-    'Package: intel-oneapi-runtime-dpcpp-cpp-2024 intel-oneapi-runtime-dpcpp-cpp-common-2024 intel-oneapi-runtime-dpcpp-sycl-core-2024 intel-oneapi-runtime-dpcpp-sycl-cpu-rt-2024 intel-oneapi-runtime-dpcpp-sycl-fpga-emul-2024 intel-oneapi-runtime-dpcpp-sycl-opencl-cpu-2024 intel-oneapi-runtime-dpcpp-sycl-rt-2024 intel-oneapi-runtime-compilers-2024 intel-oneapi-runtime-compilers-common-2024 intel-oneapi-runtime-opencl-2024 intel-oneapi-runtime-openmp-2024 intel-oneapi-runtime-openmp-opencl-shared-2024' \
-    'Pin: version 2024.1*' \
-    'Pin-Priority: 1001' \
-    '' \
-    'Package: intel-oneapi-runtime-mkl-2024 intel-oneapi-runtime-mkl-common-2024' \
-    'Pin: version 2024.1*' \
-    'Pin-Priority: 1001' \
-    > /etc/apt/preferences.d/oneapi-2024.1 \
  && apt-get update \
- && test "$(apt-cache policy intel-oneapi-runtime-dpcpp-sycl-core-2024 | awk '/Candidate:/ {print $2}')" = "${ONEAPI_DPCPP_VERSION}" \
- && test "$(apt-cache policy intel-oneapi-runtime-dpcpp-sycl-fpga-emul-2024 | awk '/Candidate:/ {print $2}')" = "${ONEAPI_DPCPP_VERSION}" \
- && test "$(apt-cache policy intel-oneapi-runtime-mkl-common-2024 | awk '/Candidate:/ {print $2}')" = "${ONEAPI_MKL_VERSION}" \
+ && for pkg in \
+      intel-oneapi-runtime-compilers-2024 \
+      intel-oneapi-runtime-compilers-common-2024 \
+      intel-oneapi-runtime-dpcpp-cpp-2024 \
+      intel-oneapi-runtime-dpcpp-cpp-common-2024 \
+      intel-oneapi-runtime-dpcpp-sycl-core-2024 \
+      intel-oneapi-runtime-dpcpp-sycl-cpu-rt-2024 \
+      intel-oneapi-runtime-dpcpp-sycl-fpga-emul-2024 \
+      intel-oneapi-runtime-dpcpp-sycl-opencl-cpu-2024 \
+      intel-oneapi-runtime-dpcpp-sycl-rt-2024 \
+      intel-oneapi-runtime-opencl-2024 \
+      intel-oneapi-runtime-openmp-2024 \
+      intel-oneapi-runtime-openmp-opencl-shared-2024; do \
+      apt-cache madison "$pkg" | grep -F "${ONEAPI_DPCPP_VERSION}" >/dev/null || { echo "Missing ${pkg}=${ONEAPI_DPCPP_VERSION}"; exit 1; }; \
+    done \
+ && apt-cache madison intel-oneapi-runtime-mkl-common-2024 | grep -F "${ONEAPI_MKL_VERSION}" >/dev/null \
+ && apt-cache madison intel-oneapi-runtime-mkl-2024 | grep -F "${ONEAPI_MKL_VERSION}" >/dev/null \
  && apt-get install -y --no-install-recommends \
+    "intel-oneapi-runtime-compilers-2024=${ONEAPI_DPCPP_VERSION}" \
+    "intel-oneapi-runtime-compilers-common-2024=${ONEAPI_DPCPP_VERSION}" \
     "intel-oneapi-runtime-dpcpp-cpp-2024=${ONEAPI_DPCPP_VERSION}" \
+    "intel-oneapi-runtime-dpcpp-cpp-common-2024=${ONEAPI_DPCPP_VERSION}" \
+    "intel-oneapi-runtime-dpcpp-sycl-core-2024=${ONEAPI_DPCPP_VERSION}" \
+    "intel-oneapi-runtime-dpcpp-sycl-cpu-rt-2024=${ONEAPI_DPCPP_VERSION}" \
+    "intel-oneapi-runtime-dpcpp-sycl-fpga-emul-2024=${ONEAPI_DPCPP_VERSION}" \
+    "intel-oneapi-runtime-dpcpp-sycl-opencl-cpu-2024=${ONEAPI_DPCPP_VERSION}" \
+    "intel-oneapi-runtime-dpcpp-sycl-rt-2024=${ONEAPI_DPCPP_VERSION}" \
+    "intel-oneapi-runtime-opencl-2024=${ONEAPI_DPCPP_VERSION}" \
+    "intel-oneapi-runtime-openmp-2024=${ONEAPI_DPCPP_VERSION}" \
+    "intel-oneapi-runtime-openmp-opencl-shared-2024=${ONEAPI_DPCPP_VERSION}" \
     "intel-oneapi-runtime-mkl-common-2024=${ONEAPI_MKL_VERSION}" \
     "intel-oneapi-runtime-mkl-2024=${ONEAPI_MKL_VERSION}" \
  && rm -rf /var/lib/apt/lists/*
