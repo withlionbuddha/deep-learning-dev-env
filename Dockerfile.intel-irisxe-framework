@@ -54,7 +54,6 @@ RUN useradd -m -s /bin/bash dev \
 USER dev
 WORKDIR /home/workspace
 
-# Common Python/Jupyter environment inherited by both framework stages.
 RUN python -m pip install --user --upgrade pip setuptools wheel \
  && python -m pip install --user --no-cache-dir \
     numpy pandas matplotlib scikit-learn threadpoolctl wget \
@@ -67,8 +66,6 @@ ARG PYTORCH_VERSION=2.8.0+xpu
 ARG TORCHVISION_VERSION=0.23.0+xpu
 ARG TORCHAUDIO_VERSION=2.8.0+xpu
 
-# Keep the original PyTorch XPU path independent from TensorFlow's legacy
-# oneAPI 2024.1 runtime.
 RUN python -m pip uninstall -y torch torchvision torchaudio pytorch-triton-xpu intel-extension-for-pytorch || true \
  && python -m pip install --user --no-cache-dir --force-reinstall \
     --timeout 180 --retries 10 \
@@ -86,10 +83,11 @@ FROM intel-irisxe-base AS tensorflow
 
 USER root
 
-# ITEX 2.15 requires the oneAPI 2024.1 generation. Install only the runtime
-# components needed by ITEX instead of the full BaseKit (VTune, Advisor,
-# dev-utilities, GUI plugins, etc.). Explicitly pin the direct common package
-# required by the 2024.1 oneMKL runtime so APT cannot mix later 2024.x builds.
+# ITEX 2.15 needs the oneAPI 2024.1 generation. The Intel repository also
+# contains later 2024.x revisions under the same package names, so pin every
+# DPC++/compiler/OpenMP/OpenCL dependency family used by the 2024.1 runtime.
+# This prevents APT from mixing a 2024.1 top-level package with 2024.2
+# transitive packages (which causes file collisions during dpkg unpack).
 ARG ONEAPI_DPCPP_VERSION=2024.1.2-995
 ARG ONEAPI_MKL_VERSION=2024.1.0-691
 RUN mkdir -p /usr/share/keyrings \
@@ -97,17 +95,25 @@ RUN mkdir -p /usr/share/keyrings \
     | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
  && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
     > /etc/apt/sources.list.d/oneAPI.list \
+ && printf '%s\n' \
+    'Package: intel-oneapi-runtime-dpcpp-cpp-2024 intel-oneapi-runtime-dpcpp-cpp-common-2024 intel-oneapi-runtime-dpcpp-sycl-core-2024 intel-oneapi-runtime-dpcpp-sycl-cpu-rt-2024 intel-oneapi-runtime-dpcpp-sycl-fpga-emul-2024 intel-oneapi-runtime-dpcpp-sycl-opencl-cpu-2024 intel-oneapi-runtime-dpcpp-sycl-rt-2024 intel-oneapi-runtime-compilers-2024 intel-oneapi-runtime-compilers-common-2024 intel-oneapi-runtime-opencl-2024 intel-oneapi-runtime-openmp-2024 intel-oneapi-runtime-openmp-opencl-shared-2024' \
+    'Pin: version 2024.1*' \
+    'Pin-Priority: 1001' \
+    '' \
+    'Package: intel-oneapi-runtime-mkl-2024 intel-oneapi-runtime-mkl-common-2024' \
+    'Pin: version 2024.1*' \
+    'Pin-Priority: 1001' \
+    > /etc/apt/preferences.d/oneapi-2024.1 \
  && apt-get update \
- && apt-cache madison intel-oneapi-runtime-dpcpp-cpp-2024 | grep -F "${ONEAPI_DPCPP_VERSION}" \
- && apt-cache madison intel-oneapi-runtime-mkl-common-2024 | grep -F "${ONEAPI_MKL_VERSION}" \
- && apt-cache madison intel-oneapi-runtime-mkl-2024 | grep -F "${ONEAPI_MKL_VERSION}" \
+ && test "$(apt-cache policy intel-oneapi-runtime-dpcpp-sycl-core-2024 | awk '/Candidate:/ {print $2}')" = "${ONEAPI_DPCPP_VERSION}" \
+ && test "$(apt-cache policy intel-oneapi-runtime-dpcpp-sycl-fpga-emul-2024 | awk '/Candidate:/ {print $2}')" = "${ONEAPI_DPCPP_VERSION}" \
+ && test "$(apt-cache policy intel-oneapi-runtime-mkl-common-2024 | awk '/Candidate:/ {print $2}')" = "${ONEAPI_MKL_VERSION}" \
  && apt-get install -y --no-install-recommends \
     "intel-oneapi-runtime-dpcpp-cpp-2024=${ONEAPI_DPCPP_VERSION}" \
     "intel-oneapi-runtime-mkl-common-2024=${ONEAPI_MKL_VERSION}" \
     "intel-oneapi-runtime-mkl-2024=${ONEAPI_MKL_VERSION}" \
  && rm -rf /var/lib/apt/lists/*
 
-# Register only the libraries ITEX needs in non-interactive processes.
 RUN SYCL_LIB="$(find /opt/intel/oneapi -name 'libsycl.so.8' -print -quit)" \
  && MKL_SYCL_LIB="$(find /opt/intel/oneapi -name 'libmkl_sycl.so*' -print -quit)" \
  && test -n "${SYCL_LIB}" \
