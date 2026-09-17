@@ -1,0 +1,33 @@
+{
+  "name": "wsl-intel-irisxe-framework-dev-env",
+  "service": "wsl-intel-irisxe-framework-dev",
+  "dockerComposeFile": [
+    "../../docker-compose-wsl-intel-irisxe-framework.yml"
+  ],
+  "workspaceFolder": "/home/workspace",
+  "overrideCommand": true,
+  "forwardPorts": [8888],
+  "runServices": [
+    "wsl-intel-irisxe-framework-dev"
+  ],
+  "postStartCommand": "ln -sfn /home/drive /home/workspace/drive && python -c \"import os; print('Framework:', os.getenv('DEEP_LEARNING_FRAMEWORK'))\"",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-toolsai.jupyter",
+        "ms-toolsai.jupyter-keymap",
+        "ms-toolsai.jupyter-renderers",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/bin/python3",
+        "remote.extensionKind": {
+          "github.copilot": ["ui"],
+          "github.copilot-chat": ["ui"]
+        }
+      }
+    }
+  }
+}
