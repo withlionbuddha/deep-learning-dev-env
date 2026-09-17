@@ -18,6 +18,10 @@
 
 ---
 
+## PyTorch / TensorFlow Docker Dev Environment 상세
+
+> 아래 내용은 저장소의 여러 개발 환경 중 **Intel Iris Xe XPU 기반 PyTorch/TensorFlow Docker Dev Environment**의 구성, 라이브러리 사양 및 실제 검증 결과를 상세히 기록합니다.
+
 ## 1. 검증 하드웨어
 
 > ### Intel Iris Xe 개발 환경
