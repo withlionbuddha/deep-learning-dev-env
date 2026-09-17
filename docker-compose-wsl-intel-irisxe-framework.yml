@@ -1,5 +1,6 @@
 services:
   wsl-intel-irisxe-framework-dev:
+    container_name: ${CONTAINER_NAME:-deep-learning-dev}
     build:
       context: .
       dockerfile: Dockerfile.intel-irisxe-framework
