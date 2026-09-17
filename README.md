@@ -8,7 +8,7 @@
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.15.0-FF6F00)](https://www.tensorflow.org/)
 [![oneAPI](https://img.shields.io/badge/oneAPI-2025.0-0071C5)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/overview.html)
 
-> Windows + WSL2 + Docker Desktop에서 Intel Iris Xe를 이용해 PyTorch XPU와 TensorFlow XPU 개발 환경을 구성하는 저장소입니다.
+> 이 저장소는 Windows + WSL2 + Docker Desktop에서 Intel Iris Xe를 이용해 PyTorch XPU와 TensorFlow XPU 개발 환경을 구성하는 저장소입니다.
 >
 > 이전 README는 [`README-v0.1.0.md`](README-v0.1.0.md)에 보관합니다.
 
