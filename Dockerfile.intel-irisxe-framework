@@ -46,34 +46,29 @@ RUN apt-get update \
     done \
  && rm -rf /var/lib/apt/lists/*
 
-# ITEX 2.15 requires the oneAPI 2024.1 runtime generation. Pin the complete
-# matching dependency set because pinning only the DPC++/MKL meta-packages lets
-# APT select newer 2024.x common/component packages and causes version conflicts.
+# ITEX 2.15 requires oneAPI 2024.1. Intel's year-versioned packages also expose
+# newer 2024.x revisions, so pin every intel-oneapi package to 2024.1 before
+# asking APT to resolve the DPC++/SYCL and oneMKL dependency graph.
 RUN mkdir -p /usr/share/keyrings \
  && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
     | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
  && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
     > /etc/apt/sources.list.d/oneAPI.list \
+ && printf '%s\n' \
+      'Package: intel-oneapi-*' \
+      'Pin: version 2024.1*' \
+      'Pin-Priority: 1001' \
+      > /etc/apt/preferences.d/intel-oneapi-2024.1 \
  && apt-get update \
- && DPCPP_VERSION="$(apt-cache madison intel-oneapi-runtime-dpcpp-cpp-2024 | awk '$3 ~ /^2024\.1([.-]|$)/ {print $3; exit}')" \
- && MKL_VERSION="$(apt-cache madison intel-oneapi-runtime-mkl-2024 | awk '$3 ~ /^2024\.1([.-]|$)/ {print $3; exit}')" \
- && echo "DPC++ runtime: ${DPCPP_VERSION}" \
- && echo "oneMKL runtime: ${MKL_VERSION}" \
- && test -n "${DPCPP_VERSION}" \
- && test -n "${MKL_VERSION}" \
- && DPCPP_DEPS="$(apt-cache depends "intel-oneapi-runtime-dpcpp-cpp-2024=${DPCPP_VERSION}" | sed -n 's/^  Depends: //p' | grep '^intel-oneapi-' | sort -u)" \
- && MKL_DEPS="$(apt-cache depends "intel-oneapi-runtime-mkl-2024=${MKL_VERSION}" | sed -n 's/^  Depends: //p' | grep '^intel-oneapi-' | sort -u)" \
- && PINNED_PACKAGES="intel-oneapi-runtime-dpcpp-cpp-2024=${DPCPP_VERSION} intel-oneapi-runtime-mkl-2024=${MKL_VERSION}" \
- && for pkg in ${DPCPP_DEPS}; do \
-      version="$(apt-cache madison "$pkg" | awk '$3 ~ /^2024\.1([.-]|$)/ {print $3; exit}')"; \
-      test -n "$version" && PINNED_PACKAGES="${PINNED_PACKAGES} ${pkg}=${version}"; \
-    done \
- && for pkg in ${MKL_DEPS}; do \
-      version="$(apt-cache madison "$pkg" | awk '$3 ~ /^2024\.1([.-]|$)/ {print $3; exit}')"; \
-      test -n "$version" && PINNED_PACKAGES="${PINNED_PACKAGES} ${pkg}=${version}"; \
-    done \
- && echo "Installing: ${PINNED_PACKAGES}" \
- && apt-get install -y --no-install-recommends ${PINNED_PACKAGES} \
+ && DPCPP_VERSION="$(apt-cache policy intel-oneapi-runtime-dpcpp-cpp-2024 | awk '/Candidate:/ {print $2}')" \
+ && MKL_VERSION="$(apt-cache policy intel-oneapi-runtime-mkl-2024 | awk '/Candidate:/ {print $2}')" \
+ && echo "DPC++ runtime candidate: ${DPCPP_VERSION}" \
+ && echo "oneMKL runtime candidate: ${MKL_VERSION}" \
+ && [[ "${DPCPP_VERSION}" == 2024.1* ]] \
+ && [[ "${MKL_VERSION}" == 2024.1* ]] \
+ && apt-get install -y --no-install-recommends \
+    intel-oneapi-runtime-dpcpp-cpp-2024 \
+    intel-oneapi-runtime-mkl-2024 \
  && SYCL_LIB="$(find /opt/intel/oneapi -name 'libsycl.so.8' -print -quit)" \
  && test -n "${SYCL_LIB}" \
  && SYCL_LIB_DIR="$(dirname "${SYCL_LIB}")" \
