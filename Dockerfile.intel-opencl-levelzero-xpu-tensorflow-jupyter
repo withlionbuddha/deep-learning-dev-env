@@ -1,320 +1,82 @@
-############## MS1 ##############
-FROM ubuntu:22.04 AS intel-levelzero-opencl-xpu
+# syntax=docker/dockerfile:1.7
 
-# -----------------------------------
-# 기본 환경 변수
-# -----------------------------------
-ENV DEBIAN_FRONTEND=noninteractive
+FROM ubuntu:22.04 AS intel-levelzero-opencl-xpu-tensorflow
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-ENV HOME=/root
-ENV SHELL=/bin/bash
+ENV DEBIAN_FRONTEND=noninteractive \
+    HOME=/home/dev \
+    SHELL=/bin/bash \
+    PATH=/home/dev/.local/bin:$PATH \
+    XDG_CACHE_HOME=/home/dev/.cache \
+    OMP_NUM_THREADS=6 \
+    MKL_NUM_THREADS=6 \
+    OPENBLAS_NUM_THREADS=6 \
+    NUMEXPR_NUM_THREADS=6
 
-# -----------------------------------
-# 시스템 패키지 설치
-# -----------------------------------
-RUN apt-get update && apt-get install -y \
-    sudo \
-    curl \
-    wget \
-    vim \
-    nano \
-    tini \
-    build-essential \
-    gcc \
-    g++ \
-    make \
-    pkg-config \
-    ca-certificates \
-    openssh-client \
-    iputils-ping \
-    net-tools \
-    procps \
-    gnupg \
-    python3 \
-    python3-pip \
-    python3-venv \
-    python-is-python3 \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    sudo curl wget git vim nano tini build-essential gcc g++ make pkg-config \
+    ca-certificates openssh-client iputils-ping net-tools procps gnupg gpg-agent \
+    python3 python3-pip python3-venv python-is-python3 \
  && rm -rf /var/lib/apt/lists/*
 
-
-# ============================================================
-# [i7-1260P / Iris Xe (ADL-P, 0x46a6) GPU Runtime]
-#
-# oneAPI 2024.2의 Intel Iris Xe iGPU 지원 기준:
-#   - Ubuntu 22.04
-#   - Level Zero + OpenCL graphics runtime 필요
-#   - oneAPI 2024.2 권장 LTS GPU driver: 2350.63
-#
-# 기존 "jammy arc" 저장소는 오래된 647 runtime을 설치하여
-# OpenCL에서는 Iris Xe가 보이지만 Level Zero device가 열거되지 않았음.
-#
-# 따라서 oneAPI 2024.2 권장 LTS 2350.63 저장소로 고정한다.
-# 주의: 이 설정은 Iris Xe용 oneAPI/SYCL runtime 정합성을 맞추는 것이며,
-#       ITEX 2.15가 WSL2의 Iris Xe를 XPU로 공식 보장한다는 의미는 아니다.
-# ============================================================
-RUN wget -qO - \
-    https://repositories.intel.com/gpu/intel-graphics.key \
-    | gpg --yes --dearmor \
-        --output /usr/share/keyrings/intel-graphics.gpg \
- && echo \
-    "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy/lts/2350.63 unified" \
+RUN wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | \
+    gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg \
+ && echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy client" \
     > /etc/apt/sources.list.d/intel-gpu-jammy.list \
- && apt-get update
-
-
-# ============================================================
-# Intel Iris Xe Compute Runtime
-#
-# intel-opencl-icd:
-#   OpenCL backend. 현재 Iris Xe [0x46a6] 인식에 사용.
-#
-# intel-level-zero-gpu + level-zero:
-#   Level Zero backend. ITEX XPU가 요구하는 핵심 GPU runtime.
-#
-# level-zero-dev:
-#   Level Zero 개발 헤더/loader 개발 파일.
-#
-# clinfo:
-#   OpenCL GPU 인식 진단.
-#
-# 설치 후 확인:
-#   dpkg-query -W -f='${Package} ${Version}\n' \
-#       intel-opencl-icd intel-level-zero-gpu
-#   sycl-ls
-#
-# 목표:
-#   [opencl:gpu]     Intel(R) Graphics [0x46a6]
-#   [level_zero:gpu] Intel(R) Graphics [0x46a6]
-# ============================================================
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    intel-opencl-icd \
-    intel-level-zero-gpu \
-    level-zero \
-    level-zero-dev \
-    clinfo \
+ && dpkg --add-architecture i386 \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends intel-opencl-icd intel-level-zero-gpu clinfo \
+ && for pkg in libze1 libze-dev intel-ocloc intel-level-zero-gpu-dev level-zero level-zero-dev libigc1 intel-igc-cm libigdgmm12; do apt-get install -y --no-install-recommends "$pkg" || true; done \
  && rm -rf /var/lib/apt/lists/*
 
-
-# -----------------------------------
-# Intel GPU Runtime
-# 미디어 / GUI / OpenVINO 계열
-# -----------------------------------
-RUN apt-get update && apt-get install -y \
-    intel-media-va-driver-non-free \
-    libmfx1 \
-    libmfxgen1 \
-    libvpl2 \
-    libegl-mesa0 \
-    libegl1-mesa \
-    libgbm1 \
-    libgl1-mesa-dri \
-    libglx-mesa0 \
-    libigdgmm12 \
-    mesa-va-drivers \
-    mesa-vulkan-drivers \
-    va-driver-all \
+RUN mkdir -p /usr/share/keyrings \
+ && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
+ && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends intel-oneapi-compiler-dpcpp-cpp-2025.0 intel-oneapi-mkl-2025.0 \
+ && test -x /opt/intel/oneapi/compiler/2025.0/bin/sycl-ls \
  && rm -rf /var/lib/apt/lists/*
 
+RUN SYCL_LIB="$(find /opt/intel/oneapi \( -type f -o -type l \) -name 'libsycl.so.8' -print -quit)" \
+ && MKL_SYCL_BLAS="$(find /opt/intel/oneapi \( -type f -o -type l \) -name 'libmkl_sycl_blas.so.5' -print -quit)" \
+ && UMF_LIB="$(find /opt/intel/oneapi \( -type f -o -type l \) -name 'libumf.so.0' -print -quit)" \
+ && test -n "${SYCL_LIB}" && test -e "${SYCL_LIB}" \
+ && test -n "${MKL_SYCL_BLAS}" && test -e "${MKL_SYCL_BLAS}" \
+ && test -n "${UMF_LIB}" && test -e "${UMF_LIB}" \
+ && dirname "${SYCL_LIB}" > /etc/ld.so.conf.d/intel-oneapi-sycl.conf \
+ && dirname "${MKL_SYCL_BLAS}" > /etc/ld.so.conf.d/intel-oneapi-mkl-sycl.conf \
+ && dirname "${UMF_LIB}" > /etc/ld.so.conf.d/intel-oneapi-umf.conf \
+ && ldconfig \
+ && ldconfig -p | grep -F 'libsycl.so.8' \
+ && ldconfig -p | grep -F 'libmkl_sycl_blas.so.5' \
+ && ldconfig -p | grep -F 'libumf.so.0'
 
-# -----------------------------------
-# OpenCL loader / 개발 보조 패키지
-#
-# intel-opencl-icd는 위 Iris Xe Compute Runtime 단계에서
-# LTS 2350.63 저장소 기준으로 이미 설치하므로 여기서 중복 설치하지 않는다.
-# -----------------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gpg \
-    ocl-icd-libopencl1 \
-    ocl-icd-opencl-dev \
-    libigc1 \
-    libigdfcl1 \
-    libigdgmm12 \
-    libgl1 \
-    libglib2.0-0 \
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
+ENV PATH=/opt/intel/oneapi/compiler/2025.0/bin:$PATH \
+    LD_LIBRARY_PATH=/opt/intel/oneapi/compiler/2025.0/lib:/opt/intel/oneapi/mkl/2025.0/lib:/opt/intel/oneapi/mkl/2025.0/lib/intel64:/opt/intel/oneapi/umf/0.9/lib:/usr/lib/wsl/lib \
+    TF_ENABLE_ONEDNN_OPTS=1 \
+    UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS=1 \
+    DEEP_LEARNING_FRAMEWORK=tensorflow
 
-
-# ============================================================
-# [수정]
-# Intel oneAPI Base Toolkit 2024.2.1
-#
-# i7-1260P Iris Xe는 oneAPI 2024.2의 iGFX 지원 대상이며,
-# GPU runtime은 위에서 LTS 2350.63으로 맞춘다.
-# ============================================================
-
-ARG ONEAPI_INSTALLER=l_BaseKit_p_2024.2.1.100_offline.sh
-
-ARG ONEAPI_URL=https://registrationcenter-download.intel.com/akdlm/IRC_NAS/e6ff8e9c-ee28-47fb-abd7-5c524c983e1c/${ONEAPI_INSTALLER}
-
-RUN wget -q "${ONEAPI_URL}" \
-        -O "/tmp/${ONEAPI_INSTALLER}" \
- && chmod +x "/tmp/${ONEAPI_INSTALLER}" \
- && "/tmp/${ONEAPI_INSTALLER}" \
-        -a \
-        --silent \
-        --eula accept \
- && rm -f "/tmp/${ONEAPI_INSTALLER}"
-
-
-# ============================================================
-# [수정]
-# oneAPI shared library 등록
-#
-# 수정 전:
-#   libimf.so 위치만 등록
-#
-# 수정 후:
-#   libsycl / libimf 실제 설치 위치 등록
-# ============================================================
-
-RUN find /opt/intel/oneapi \
-        -type f \( \
-            -name "libsycl.so*" \
-            -o -name "libimf.so*" \
-        \) \
-        -exec dirname {} \; \
-    | sort -u \
-    > /etc/ld.so.conf.d/intel-oneapi.conf \
- && ldconfig
-
-
-# -----------------------------------
-# oneAPI shell 환경
-# -----------------------------------
-RUN echo \
-    'source /opt/intel/oneapi/setvars.sh >/dev/null 2>&1' \
-    >> /etc/bash.bashrc
-
-
-# ============================================================
-# Build 단계에서 oneAPI library 존재 확인
-# ============================================================
-
-RUN echo "=== oneAPI SYCL libraries ===" \
- && find /opt/intel/oneapi \
-        -name "libsycl.so*" \
-        -print \
- && echo "=== oneAPI IMF libraries ===" \
- && find /opt/intel/oneapi \
-        -name "libimf.so*" \
-        -print \
- && echo "=== ldconfig ===" \
- && ldconfig -p \
-        | grep -E "libsycl|libimf" \
-        || true
-
-
-# -----------------------------------
-# 일반 사용자 생성
-# -----------------------------------
 RUN useradd -m -s /bin/bash dev \
- && echo "dev ALL=(ALL) NOPASSWD:ALL" \
-    >> /etc/sudoers
+ && echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
+ && mkdir -p /home/workspace /home/dev/.jupyter \
+ && chown -R dev:dev /home/workspace /home/dev
 
-# -----------------------------------
-# 작업 디렉토리 생성
-# -----------------------------------
-RUN mkdir -p /home/workspace \
- && chown -R dev:dev /home/workspace
-
-# -----------------------------------
-# 사용자 전환
-# -----------------------------------
 USER dev
-
-ENV HOME=/home/dev
-ENV PATH=/home/dev/.local/bin:$PATH
-ENV XDG_CACHE_HOME=/home/dev/.cache
-
 WORKDIR /home/workspace
 
-# -----------------------------------
-# pip 최신화
-# -----------------------------------
-RUN python -m pip install --user --upgrade \
-    pip \
-    setuptools \
-    wheel
+ARG TENSORFLOW_VERSION=2.15.0
+ARG ITEX_VERSION=2.15.0.2
 
-# -----------------------------------
-# Python 패키지 설치
-# -----------------------------------
-RUN python -m pip install --user --no-cache-dir \
-    numpy \
-    pandas \
-    matplotlib \
-    scikit-learn \
-    wget \
-    threadpoolctl
+RUN python -m pip install --user --upgrade pip setuptools wheel \
+ && python -m pip install --user --no-cache-dir \
+    numpy pandas matplotlib scikit-learn threadpoolctl wget \
+    "tensorflow==${TENSORFLOW_VERSION}" \
+    "intel-extension-for-tensorflow[xpu]==${ITEX_VERSION}" \
+    notebook jupyterlab ipywidgets ipykernel \
+ && python -m pip check \
+ && python -c "import importlib.metadata as m; print('TensorFlow:', m.version('tensorflow')); print('ITEX:', m.version('intel-extension-for-tensorflow')); print('ITEX lib:', m.version('intel-extension-for-tensorflow-lib'))"
 
-
-############## MS2 ##################
-
-FROM intel-levelzero-opencl-xpu AS intel-levelzero-opencl-xpu-tensorflow
-
-# ============================================================
-# [수정]
-# TensorFlow + Intel Extension for TensorFlow
-#
-# 수정 전:
-# tensorflow==2.15.1
-# intel-extension-for-tensorflow[xpu]
-#
-# 수정 후:
-# tensorflow==2.15.1
-# intel-extension-for-tensorflow[xpu]==2.15.0.1
-# ============================================================
-
-RUN python -m pip install --user --no-cache-dir \
-    "tensorflow==2.15.1" \
-    "intel-extension-for-tensorflow[xpu]==2.15.0.1"
-
-# -----------------------------------
-# Python 패키지 설치
-# -----------------------------------
-RUN python -m pip install --user --no-cache-dir \
-    numpy \
-    pandas \
-    matplotlib \
-    scikit-learn \
-    wget
-
-
-############## MS3 ##################
-
-FROM intel-levelzero-opencl-xpu-tensorflow AS intel-levelzero-opencl-xpu-tensorflow_jupyter
-
-# -----------------------------------
-# Jupyter 및 데이터 분석/딥러닝 실습
-# -----------------------------------
-RUN python -m pip install --user --no-cache-dir \
-    notebook \
-    jupyterlab \
-    ipywidgets \
-    ipykernel
-
-# -----------------------------------
-# Jupyter 기본 설정 디렉토리
-# -----------------------------------
-RUN mkdir -p /home/dev/.jupyter
-
-# -----------------------------------
-# Jupyter 포트
-# -----------------------------------
 EXPOSE 8888
-
-# -----------------------------------
-# tini init process
-# -----------------------------------
 ENTRYPOINT ["/usr/bin/tini", "--"]
-
-# -----------------------------------
-# 기본 실행
-# -----------------------------------
-CMD ["jupyter", "lab", \
-     "--ip=0.0.0.0", \
-     "--port=8888", \
-     "--no-browser", \
-     "--ServerApp.token=", \
-     "--ServerApp.allow_origin=*"]
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--ServerApp.token=", "--ServerApp.allow_origin=*"]
