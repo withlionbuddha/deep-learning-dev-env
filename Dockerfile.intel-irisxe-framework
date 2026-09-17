@@ -67,6 +67,8 @@ ARG PYTORCH_VERSION=2.8.0+xpu
 ARG TORCHVISION_VERSION=0.23.0+xpu
 ARG TORCHAUDIO_VERSION=2.8.0+xpu
 
+# Keep the original PyTorch XPU path independent from TensorFlow's legacy
+# oneAPI 2024.1 runtime.
 RUN python -m pip uninstall -y torch torchvision torchaudio pytorch-triton-xpu intel-extension-for-pytorch || true \
  && python -m pip install --user --no-cache-dir --force-reinstall \
     --timeout 180 --retries 10 \
@@ -84,22 +86,28 @@ FROM intel-irisxe-base AS tensorflow
 
 USER root
 
-# ITEX 2.15.0.0 documents oneAPI Base Toolkit 2024.1 as its XPU software
-# requirement. Use Intel's verified 2024.1 offline BaseKit installer instead of
-# resolving year-named APT runtime packages, whose current dependency graph can
-# mix later 2024.x revisions.
-ARG ONEAPI_BASEKIT_INSTALLER=l_BaseKit_p_2024.1.0.596.sh
-ARG ONEAPI_BASEKIT_URL=https://registrationcenter-download.intel.com/akdlm/IRC_NAS/fdc7a2bc-b7a8-47eb-8876-de6201297144/l_BaseKit_p_2024.1.0.596.sh
-RUN wget -q --show-progress -O "/tmp/${ONEAPI_BASEKIT_INSTALLER}" "${ONEAPI_BASEKIT_URL}" \
- && chmod +x "/tmp/${ONEAPI_BASEKIT_INSTALLER}" \
- && "/tmp/${ONEAPI_BASEKIT_INSTALLER}" -a --silent --eula accept \
- && test -f /opt/intel/oneapi/setvars.sh \
- && find /opt/intel/oneapi -name 'libsycl.so.8' -print -quit | grep -q . \
- && find /opt/intel/oneapi -name 'libmkl_sycl.so*' -print -quit | grep -q . \
- && rm -f "/tmp/${ONEAPI_BASEKIT_INSTALLER}"
+# ITEX 2.15 requires the oneAPI 2024.1 generation. Install only the runtime
+# components needed by ITEX instead of the full BaseKit (VTune, Advisor,
+# dev-utilities, GUI plugins, etc.). Explicitly pin the direct common package
+# required by the 2024.1 oneMKL runtime so APT cannot mix later 2024.x builds.
+ARG ONEAPI_DPCPP_VERSION=2024.1.2-995
+ARG ONEAPI_MKL_VERSION=2024.1.0-691
+RUN mkdir -p /usr/share/keyrings \
+ && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+    | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
+ && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
+    > /etc/apt/sources.list.d/oneAPI.list \
+ && apt-get update \
+ && apt-cache madison intel-oneapi-runtime-dpcpp-cpp-2024 | grep -F "${ONEAPI_DPCPP_VERSION}" \
+ && apt-cache madison intel-oneapi-runtime-mkl-common-2024 | grep -F "${ONEAPI_MKL_VERSION}" \
+ && apt-cache madison intel-oneapi-runtime-mkl-2024 | grep -F "${ONEAPI_MKL_VERSION}" \
+ && apt-get install -y --no-install-recommends \
+    "intel-oneapi-runtime-dpcpp-cpp-2024=${ONEAPI_DPCPP_VERSION}" \
+    "intel-oneapi-runtime-mkl-common-2024=${ONEAPI_MKL_VERSION}" \
+    "intel-oneapi-runtime-mkl-2024=${ONEAPI_MKL_VERSION}" \
+ && rm -rf /var/lib/apt/lists/*
 
-# Persist the compiler and oneMKL runtime paths for non-interactive container
-# processes; setvars.sh is also sourced during the ITEX validation step below.
+# Register only the libraries ITEX needs in non-interactive processes.
 RUN SYCL_LIB="$(find /opt/intel/oneapi -name 'libsycl.so.8' -print -quit)" \
  && MKL_SYCL_LIB="$(find /opt/intel/oneapi -name 'libmkl_sycl.so*' -print -quit)" \
  && test -n "${SYCL_LIB}" \
@@ -121,7 +129,7 @@ RUN python -m pip install --user --no-cache-dir \
     "tensorflow==${TENSORFLOW_VERSION}" \
     "intel-extension-for-tensorflow[xpu]==${ITEX_VERSION}" \
  && python -m pip check \
- && bash -lc 'source /opt/intel/oneapi/setvars.sh >/dev/null 2>&1 && python -c "import intel_extension_for_tensorflow as itex; print(\"ITEX:\", itex.__version__)"'
+ && python -c "import intel_extension_for_tensorflow as itex; print('ITEX:', itex.__version__)"
 
 ENV DEEP_LEARNING_FRAMEWORK=tensorflow
 
