@@ -84,31 +84,30 @@ FROM intel-irisxe-base AS tensorflow
 
 USER root
 
-# oneAPI is required by TensorFlow ITEX only. Keep it out of the common base so
-# selecting the PyTorch target never installs or resolves the TensorFlow oneAPI
-# 2024.1 dependency graph.
-ARG ONEAPI_DPCPP_VERSION=2024.1.2-995
-ARG ONEAPI_MKL_VERSION=2024.1.0-691
-RUN mkdir -p /usr/share/keyrings \
- && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
-    | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
- && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
-    > /etc/apt/sources.list.d/oneAPI.list \
- && apt-get update \
- && apt-get install -y --no-install-recommends \
-    "intel-oneapi-runtime-dpcpp-cpp-2024=${ONEAPI_DPCPP_VERSION}" \
-    "intel-oneapi-runtime-mkl-common-2024=${ONEAPI_MKL_VERSION}" \
-    "intel-oneapi-runtime-mkl-2024=${ONEAPI_MKL_VERSION}" \
- && SYCL_LIB="$(find /opt/intel/oneapi -name 'libsycl.so.8' -print -quit)" \
+# ITEX 2.15.0.0 documents oneAPI Base Toolkit 2024.1 as its XPU software
+# requirement. Use Intel's verified 2024.1 offline BaseKit installer instead of
+# resolving year-named APT runtime packages, whose current dependency graph can
+# mix later 2024.x revisions.
+ARG ONEAPI_BASEKIT_INSTALLER=l_BaseKit_p_2024.1.0.596.sh
+ARG ONEAPI_BASEKIT_URL=https://registrationcenter-download.intel.com/akdlm/IRC_NAS/fdc7a2bc-b7a8-47eb-8876-de6201297144/l_BaseKit_p_2024.1.0.596.sh
+RUN wget -q --show-progress -O "/tmp/${ONEAPI_BASEKIT_INSTALLER}" "${ONEAPI_BASEKIT_URL}" \
+ && chmod +x "/tmp/${ONEAPI_BASEKIT_INSTALLER}" \
+ && "/tmp/${ONEAPI_BASEKIT_INSTALLER}" -a --silent --eula accept \
+ && test -f /opt/intel/oneapi/setvars.sh \
+ && find /opt/intel/oneapi -name 'libsycl.so.8' -print -quit | grep -q . \
+ && find /opt/intel/oneapi -name 'libmkl_sycl.so*' -print -quit | grep -q . \
+ && rm -f "/tmp/${ONEAPI_BASEKIT_INSTALLER}"
+
+# Persist the compiler and oneMKL runtime paths for non-interactive container
+# processes; setvars.sh is also sourced during the ITEX validation step below.
+RUN SYCL_LIB="$(find /opt/intel/oneapi -name 'libsycl.so.8' -print -quit)" \
+ && MKL_SYCL_LIB="$(find /opt/intel/oneapi -name 'libmkl_sycl.so*' -print -quit)" \
  && test -n "${SYCL_LIB}" \
- && SYCL_LIB_DIR="$(dirname "${SYCL_LIB}")" \
- && printf '%s\n' "${SYCL_LIB_DIR}" > /etc/ld.so.conf.d/intel-oneapi-sycl.conf \
- && MKL_LIB_DIR="$(find /opt/intel/oneapi/mkl -type d -name lib -print -quit)" \
- && test -n "${MKL_LIB_DIR}" \
- && printf '%s\n' "${MKL_LIB_DIR}" > /etc/ld.so.conf.d/intel-oneapi-mkl.conf \
+ && test -n "${MKL_SYCL_LIB}" \
+ && printf '%s\n' "$(dirname "${SYCL_LIB}")" > /etc/ld.so.conf.d/intel-oneapi-sycl.conf \
+ && printf '%s\n' "$(dirname "${MKL_SYCL_LIB}")" > /etc/ld.so.conf.d/intel-oneapi-mkl.conf \
  && ldconfig \
- && ldconfig -p | grep -F 'libsycl.so.8' \
- && rm -rf /var/lib/apt/lists/*
+ && ldconfig -p | grep -F 'libsycl.so.8'
 
 USER dev
 
@@ -121,7 +120,8 @@ ENV TF_ENABLE_ONEDNN_OPTS=1 \
 RUN python -m pip install --user --no-cache-dir \
     "tensorflow==${TENSORFLOW_VERSION}" \
     "intel-extension-for-tensorflow[xpu]==${ITEX_VERSION}" \
- && python -m pip check
+ && python -m pip check \
+ && bash -lc 'source /opt/intel/oneapi/setvars.sh >/dev/null 2>&1 && python -c "import intel_extension_for_tensorflow as itex; print(\"ITEX:\", itex.__version__)"'
 
 ENV DEEP_LEARNING_FRAMEWORK=tensorflow
 
