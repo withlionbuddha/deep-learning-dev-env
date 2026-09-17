@@ -46,26 +46,35 @@ RUN apt-get update \
     done \
  && rm -rf /var/lib/apt/lists/*
 
-# ITEX 2.15 XPU requires the DPC++/SYCL and oneMKL runtimes from oneAPI 2024.
-# Use Intel's year-versioned runtime packages instead of trying to pin unrelated
-# compiler and MKL meta-package version strings to the same 2024.1 revision.
+# ITEX 2.15 requires oneAPI Base Toolkit 2024.1.
+# The *-2024 package names alone are not sufficient because Intel's repository
+# currently resolves them to the newest 2024.x release. Resolve and pin the
+# actual 2024.1 revisions for the DPC++/SYCL and oneMKL runtime meta-packages.
 RUN mkdir -p /usr/share/keyrings \
  && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
     | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
  && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
     > /etc/apt/sources.list.d/oneAPI.list \
  && apt-get update \
- && apt-cache policy intel-oneapi-runtime-dpcpp-cpp-2024 intel-oneapi-runtime-mkl-2024 \
+ && DPCPP_VERSION="$(apt-cache madison intel-oneapi-runtime-dpcpp-cpp-2024 | awk '$3 ~ /^2024\.1([.-]|$)/ {print $3; exit}')" \
+ && MKL_VERSION="$(apt-cache madison intel-oneapi-runtime-mkl-2024 | awk '$3 ~ /^2024\.1([.-]|$)/ {print $3; exit}')" \
+ && echo "DPC++ runtime: ${DPCPP_VERSION}" \
+ && echo "oneMKL runtime: ${MKL_VERSION}" \
+ && test -n "${DPCPP_VERSION}" \
+ && test -n "${MKL_VERSION}" \
  && apt-get install -y --no-install-recommends \
-    intel-oneapi-runtime-dpcpp-cpp-2024 \
-    intel-oneapi-runtime-mkl-2024 \
- && rm -rf /var/lib/apt/lists/* \
+    "intel-oneapi-runtime-dpcpp-cpp-2024=${DPCPP_VERSION}" \
+    "intel-oneapi-runtime-mkl-2024=${MKL_VERSION}" \
  && SYCL_LIB="$(find /opt/intel/oneapi -name 'libsycl.so.8' -print -quit)" \
- && test -n "$SYCL_LIB" \
- && dirname "$SYCL_LIB" > /etc/ld.so.conf.d/intel-oneapi-sycl.conf \
- && find /opt/intel/oneapi/mkl -type d -name lib -print -quit > /etc/ld.so.conf.d/intel-oneapi-mkl.conf \
+ && test -n "${SYCL_LIB}" \
+ && SYCL_LIB_DIR="$(dirname "${SYCL_LIB}")" \
+ && printf '%s\n' "${SYCL_LIB_DIR}" > /etc/ld.so.conf.d/intel-oneapi-sycl.conf \
+ && MKL_LIB_DIR="$(find /opt/intel/oneapi/mkl -type d -name lib -print -quit)" \
+ && test -n "${MKL_LIB_DIR}" \
+ && printf '%s\n' "${MKL_LIB_DIR}" > /etc/ld.so.conf.d/intel-oneapi-mkl.conf \
  && ldconfig \
- && ldconfig -p | grep 'libsycl.so.8'
+ && ldconfig -p | grep -F 'libsycl.so.8' \
+ && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -s /bin/bash dev \
  && echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
