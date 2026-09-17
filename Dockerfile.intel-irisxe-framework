@@ -92,10 +92,10 @@ ENV DEEP_LEARNING_FRAMEWORK=pytorch
 ############## TensorFlow ##############
 FROM intel-irisxe-base AS tensorflow
 
-# Intel validated reference-model combination on Ubuntu 22.04 / Python 3.10.
+# TensorFlow 2.15.1 + latest available ITEX 2.15 patch release on the configured pip index.
 # Iris Xe 0x46a6 XPU availability still requires runtime verification.
 ARG TENSORFLOW_VERSION=2.15.1
-ARG ITEX_VERSION=2.15.0.3
+ARG ITEX_VERSION=2.15.0.2
 
 ENV TF_ENABLE_ONEDNN_OPTS=1 \
     UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS=1
