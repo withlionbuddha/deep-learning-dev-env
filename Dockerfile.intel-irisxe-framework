@@ -46,45 +46,6 @@ RUN apt-get update \
     done \
  && rm -rf /var/lib/apt/lists/*
 
-# ITEX 2.15 requires oneAPI 2024.1. Intel's oneAPI repository keeps several
-# 2024.x revisions under the same package names, so pin all intel-oneapi
-# packages to 2024.1. The previous narrower package pattern was not applied by
-# APT (apt-cache policy still selected a 2024.2 SYCL runtime).
-ARG ONEAPI_DPCPP_VERSION=2024.1.2-995
-ARG ONEAPI_MKL_VERSION=2024.1.0-691
-RUN mkdir -p /usr/share/keyrings \
- && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
-    | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
- && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
-    > /etc/apt/sources.list.d/oneAPI.list \
- && printf '%s\n' \
-    'Package: intel-oneapi-*' \
-    'Pin: version 2024.1*' \
-    'Pin-Priority: 1001' \
-    > /etc/apt/preferences.d/oneapi-2024.1 \
- && apt-get update \
- && apt-cache madison intel-oneapi-runtime-dpcpp-cpp-2024 | grep -F "${ONEAPI_DPCPP_VERSION}" \
- && apt-cache madison intel-oneapi-runtime-mkl-2024 | grep -F "${ONEAPI_MKL_VERSION}" \
- && apt-cache policy intel-oneapi-runtime-dpcpp-sycl-core-2024 \
- && apt-cache policy intel-oneapi-runtime-mkl-common-2024 \
- && test "$(apt-cache policy intel-oneapi-runtime-dpcpp-sycl-core-2024 | awk '/Candidate:/ {print $2}')" = "${ONEAPI_DPCPP_VERSION}" \
- && test "$(apt-cache policy intel-oneapi-runtime-mkl-common-2024 | awk '/Candidate:/ {print $2}')" = "${ONEAPI_MKL_VERSION}" \
- && apt-get install -y --no-install-recommends \
-    "intel-oneapi-runtime-dpcpp-cpp-2024=${ONEAPI_DPCPP_VERSION}" \
-    "intel-oneapi-runtime-mkl-common-2024=${ONEAPI_MKL_VERSION}" \
-    "intel-oneapi-runtime-mkl-2024=${ONEAPI_MKL_VERSION}" \
- && ! dpkg-query -W -f='${Package} ${Version}\n' 'intel-oneapi-*' 2>/dev/null | grep -E ' 2024\.2' \
- && SYCL_LIB="$(find /opt/intel/oneapi -name 'libsycl.so.8' -print -quit)" \
- && test -n "${SYCL_LIB}" \
- && SYCL_LIB_DIR="$(dirname "${SYCL_LIB}")" \
- && printf '%s\n' "${SYCL_LIB_DIR}" > /etc/ld.so.conf.d/intel-oneapi-sycl.conf \
- && MKL_LIB_DIR="$(find /opt/intel/oneapi/mkl -type d -name lib -print -quit)" \
- && test -n "${MKL_LIB_DIR}" \
- && printf '%s\n' "${MKL_LIB_DIR}" > /etc/ld.so.conf.d/intel-oneapi-mkl.conf \
- && ldconfig \
- && ldconfig -p | grep -F 'libsycl.so.8' \
- && rm -rf /var/lib/apt/lists/*
-
 RUN useradd -m -s /bin/bash dev \
  && echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
  && mkdir -p /home/workspace \
@@ -120,6 +81,36 @@ ENV DEEP_LEARNING_FRAMEWORK=pytorch
 
 ############## TensorFlow ##############
 FROM intel-irisxe-base AS tensorflow
+
+USER root
+
+# oneAPI is required by TensorFlow ITEX only. Keep it out of the common base so
+# selecting the PyTorch target never installs or resolves the TensorFlow oneAPI
+# 2024.1 dependency graph.
+ARG ONEAPI_DPCPP_VERSION=2024.1.2-995
+ARG ONEAPI_MKL_VERSION=2024.1.0-691
+RUN mkdir -p /usr/share/keyrings \
+ && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+    | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
+ && echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
+    > /etc/apt/sources.list.d/oneAPI.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+    "intel-oneapi-runtime-dpcpp-cpp-2024=${ONEAPI_DPCPP_VERSION}" \
+    "intel-oneapi-runtime-mkl-common-2024=${ONEAPI_MKL_VERSION}" \
+    "intel-oneapi-runtime-mkl-2024=${ONEAPI_MKL_VERSION}" \
+ && SYCL_LIB="$(find /opt/intel/oneapi -name 'libsycl.so.8' -print -quit)" \
+ && test -n "${SYCL_LIB}" \
+ && SYCL_LIB_DIR="$(dirname "${SYCL_LIB}")" \
+ && printf '%s\n' "${SYCL_LIB_DIR}" > /etc/ld.so.conf.d/intel-oneapi-sycl.conf \
+ && MKL_LIB_DIR="$(find /opt/intel/oneapi/mkl -type d -name lib -print -quit)" \
+ && test -n "${MKL_LIB_DIR}" \
+ && printf '%s\n' "${MKL_LIB_DIR}" > /etc/ld.so.conf.d/intel-oneapi-mkl.conf \
+ && ldconfig \
+ && ldconfig -p | grep -F 'libsycl.so.8' \
+ && rm -rf /var/lib/apt/lists/*
+
+USER dev
 
 ARG TENSORFLOW_VERSION=2.15.0
 ARG ITEX_VERSION=2.15.0.2
