@@ -28,7 +28,6 @@ services:
     environment:
       DEEP_LEARNING_FRAMEWORK: ${FRAMEWORK:-pytorch}
       PYTHONUNBUFFERED: "1"
-      LD_LIBRARY_PATH: /usr/lib/wsl/lib
       OMP_NUM_THREADS: "6"
       OPENBLAS_NUM_THREADS: "6"
       MKL_NUM_THREADS: "6"
