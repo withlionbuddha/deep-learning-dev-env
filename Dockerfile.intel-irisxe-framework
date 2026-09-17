@@ -82,9 +82,10 @@ FROM intel-irisxe-base AS tensorflow
 
 USER root
 
-# ITEX 2.15.0.2.2 loads libsycl.so.8. Intel documents the SYCL runtime ABI
-# major bump to 8 in oneAPI DPC++/C++ Compiler 2025.0, so use the 2025
-# compiler/SYCL runtime here instead of the 2024.1 runtime (libsycl.so.7).
+# ITEX 2.15.0.2.2 loads libsycl.so.8. Intel's 2025 compiler documentation
+# lists libsycl.so.8 as the SYCL redistribution library. Current Intel APT
+# uses the unversioned product package names below; the old
+# intel-oneapi-runtime-*-2025 package names are not present in the repository.
 RUN mkdir -p /usr/share/keyrings \
  && wget -qO - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
     | gpg --dearmor -o /usr/share/keyrings/oneapi-archive-keyring.gpg \
@@ -92,10 +93,13 @@ RUN mkdir -p /usr/share/keyrings \
     > /etc/apt/sources.list.d/oneAPI.list \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
-    intel-oneapi-runtime-dpcpp-cpp-2025 \
-    intel-oneapi-runtime-mkl-2025 \
+    intel-oneapi-compiler-dpcpp-cpp \
+    intel-oneapi-mkl \
  && rm -rf /var/lib/apt/lists/*
 
+# Fail during image build unless the installed compiler runtime really exposes
+# the ABI required by ITEX. Register the actual oneAPI library directories so
+# non-interactive Python processes do not depend on sourcing setvars.sh.
 RUN SYCL_LIB="$(find /opt/intel/oneapi -name 'libsycl.so.8' -print -quit)" \
  && test -n "${SYCL_LIB}" \
  && find /opt/intel/oneapi \( -type f -o -type l \) | sed 's#/[^/]*$##' | sort -u > /etc/ld.so.conf.d/intel-oneapi.conf \
