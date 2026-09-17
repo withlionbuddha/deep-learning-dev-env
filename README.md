@@ -219,19 +219,19 @@
 >
 > ## 6. 실행 구성 및 주요 파일
 >
->> ### 6.1 Framework 선택
+>> ### 6.1 Framework
 >>
 >> `docker-compose-wsl-intel-irisxe-framework.yml`은 하나의 Intel Iris Xe 환경에서 **PyTorch 또는 TensorFlow를 선택하여 실행**합니다.
 >>
 >> 선택값은 `.env`의 `FRAMEWORK`이며 Compose가 이를 Docker build argument로 전달합니다.
 >>
->> **PyTorch 선택**
+>> **PyTorch**
 >>
 >> ```env
 >> FRAMEWORK=pytorch
 >> ```
 >>
->> **TensorFlow 선택**
+>> **TensorFlow **
 >>
 >> ```env
 >> FRAMEWORK=tensorflow
@@ -291,7 +291,7 @@
 >>   up -d
 >> ```
 >>
->> ### 6.4 주요 파일
+>> ### 6.4 추가/수정된 파일
 >>
 >> ```text
 >> Dockerfile.intel-irisxe-framework
@@ -301,7 +301,6 @@
 >> docker-compose-wsl-intel-xpu-tensorflow.yml
 >> docker-compose-wsl-intel-xpu-tensorflow-jupyter.yml
 >> .env.example
->> README-v0.1.0.md
 >> ```
 >>
 >> `Dockerfile.intel-irisxe-framework`는 PyTorch/TensorFlow 공통 Intel Iris Xe 개발 환경입니다.
