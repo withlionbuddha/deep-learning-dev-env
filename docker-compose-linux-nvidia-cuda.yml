@@ -2,6 +2,7 @@ version: "3.9"
 
 services:
   linux-nvidia-cuda-dev:
+    container_name: ${COMPOSE_PROJECT_NAME}-linux-nvidia-cuda-dev
     profiles: ["linux-nvidia-cuda"]
     image: intel-nvidia-cuda:latest
     ports:
