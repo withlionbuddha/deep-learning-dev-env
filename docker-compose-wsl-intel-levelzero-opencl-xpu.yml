@@ -3,6 +3,7 @@ version: "3.9"
 services:
   wsl-intel-levelzero-opencl-xpu-dev:
     profiles: ["wsl-intel-levelzero-opencl-xpu"]
+    image: intel-levelzero-opencl-xpu:latest
     build:
         context: .
         dockerfile: Dockerfile.intel-levelzero-opencl-xpu
