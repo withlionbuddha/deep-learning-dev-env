@@ -2,7 +2,7 @@
   "name": "wsl-intel-levelzero-xpu-dev-env",
   "service": "wsl-intel-levelzero-xpu-dev",
   "dockerComposeFile": [
-    "../../docker-compose-wsl-intel-levezero-xpu.yml"
+    "../../docker-compose-wsl-intel-levelzero-xpu.yml"
   ],
   "workspaceFolder": "/home/workspace",
   "overrideCommand": true,
