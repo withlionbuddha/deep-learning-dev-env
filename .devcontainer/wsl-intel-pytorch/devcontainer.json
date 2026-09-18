@@ -6,7 +6,6 @@
   ],
   "workspaceFolder": "/home/workspace",
   "overrideCommand": true,
-  "forwardPorts": [8888],
   "postStartCommand": [
     "sh",
     "-c",
