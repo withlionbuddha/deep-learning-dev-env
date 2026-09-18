@@ -2,6 +2,7 @@ version: "3.9"
 
 services:
   intel-nvidia-cuda-dev:
+    container_name: ${COMPOSE_PROJECT_NAME}-intel-nvidia-cuda-dev
     profiles: ["wsl-nvidia-cuda"]
     image: intel-nvidia-cuda:latest
     ports:
