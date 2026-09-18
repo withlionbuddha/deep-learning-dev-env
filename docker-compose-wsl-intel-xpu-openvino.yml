@@ -2,6 +2,7 @@ version: "3.9"
 
 services:
   wsl-intel-xpu-openvino-dev:
+    container_name: ${COMPOSE_PROJECT_NAME}-wsl-intel-xpu-openvino-dev
     profiles: ["wsl-intel-xpu-openvino"]
     image: intel-opencl-xpu-openvino:latest
     build:
