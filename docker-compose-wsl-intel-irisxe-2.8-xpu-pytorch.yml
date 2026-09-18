@@ -2,6 +2,7 @@ version: "3.9"
 
 services:
   wsl-intel-irisxe-2.8-xpu-pytorch-dev:
+    container_name: ${COMPOSE_PROJECT_NAME}-wsl-intel-irisxe-2.8-xpu-pytorch-dev
     profiles: ["wsl-intel-irisxe-2.8-xpu-pytorch"]
     image: intel--irisxe-2.8-levelzero-xpu-pytorch:latest
     build:
