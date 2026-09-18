@@ -18,10 +18,10 @@
 ## PyTorch & TensorFlow Docker Dev Environment for Intel XPU(GPU)
 
 >
-> [`README-v0.1.0.md`](README-v0.1.0.md) 에 비해 수정된 내용은 TensorFlow 연산을 수행하기 위한 컴파일러·연산·런타임·드라이버 계층 업데이트 입니다.
+> [`README-v0.1.0.md`](README-v0.1.0.md) 에 비해 수정된 내용은 TensorFlow 연산을 수행하기 위한 컴파일러·연산·런타임·드라이버 계층 업데이트 이며, Pytorch 연산을 수행을 위한 라이브러리는 이전과 동일합니다.
 >
 > 아래에 구성, 라이브러리 사양 및 실제 검증 결과를 상세히 기록합니다.
-> ## 라이브러리 구성과 역할
+> ## TensorFlow 라이브러리 구성과 역할 
 >
 > ```text
 > TensorFlow
