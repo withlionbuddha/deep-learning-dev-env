@@ -3,6 +3,7 @@ version: "3.9"
 services:
   linux-nvidia-cuda-dev:
     profiles: ["linux-nvidia-cuda"]
+    image: intel-nvidia-cuda:latest
     ports:
       - "${LINUX_NVIDIA_CUDA_HOST_PORT}:8888"
     build:
