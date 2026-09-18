@@ -2,6 +2,7 @@ version: "3.9"
 
 services:
   wsl-intel-xpu-openvino-jupyter-dev:
+    container_name: ${COMPOSE_PROJECT_NAME}-wsl-intel-xpu-openvino-jupyter-dev
     profiles: ["wsl-intel-xpu-openvino-jupyter"]
     image: intel-opencl-xpu-openvino-jupyter:latest
     ports:
