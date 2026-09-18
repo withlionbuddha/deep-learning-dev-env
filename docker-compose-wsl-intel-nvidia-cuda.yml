@@ -3,6 +3,7 @@ version: "3.9"
 services:
   intel-nvidia-cuda-dev:
     profiles: ["wsl-nvidia-cuda"]
+    image: intel-nvidia-cuda:latest
     ports:
       - "${WSL_NVIDIA_CUDA_HOST_PORT}:8888"
     build:
