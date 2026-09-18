@@ -2,6 +2,7 @@ version: "3.9"
 
 services:
   wsl-intel-xpu-pytorch-dev:
+    container_name: ${COMPOSE_PROJECT_NAME}-wsl-intel-xpu-pytorch-dev
     profiles: ["wsl-intel-xpu-pytorch"]
     image: intel-levelzero-xpu-pytorch:latest
     build:
