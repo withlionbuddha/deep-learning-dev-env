@@ -303,12 +303,10 @@
 >> # .env의 FRAMEWORK 값에 따라 PyTorch 또는 TensorFlow image를 build
 >> docker compose \
 >>   --env-file .env \
->>   -f docker-compose-wsl-intel-irisxe-framework.yml \
 >>   build
 >>
 >> docker compose \
 >>   --env-file .env \
->>   -f docker-compose-wsl-intel-irisxe-framework.yml \
 >>   up -d
 >> ```
 >>
