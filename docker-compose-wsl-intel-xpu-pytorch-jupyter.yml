@@ -5,7 +5,7 @@ services:
     profiles: ["wsl-intel-xpu-pytoch-jupyter"]
     image: intel-levelzero-xpu-pytorch-jupyter:latest
     ports:
-      - "${JUPYTER_HOST_PORT}:8888"
+      - "${PYTORCH_XPU_HOST_PORT}:8888"
     build:
         context: .
         dockerfile: Dockerfile.intel-levelzero-xpu-pytorch-jupyter
