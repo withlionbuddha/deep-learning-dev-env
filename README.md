@@ -9,18 +9,20 @@
 [![oneAPI](https://img.shields.io/badge/oneAPI-2025.0-0071C5)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/overview.html)
 
 > Windows + WSL2 + Docker Desktop 및 Linux 환경에서 **딥러닝·AI 개발과 하드웨어 가속 실험을 위한 컨테이너 기반 개발 환경**을 구성하는 저장소입니다.
->
-> Intel Iris Xe XPU와 NVIDIA CUDA GPU를 대상으로 PyTorch, TensorFlow, OpenVINO 등의 프레임워크를 실행할 수 있도록 **Dockerfile, Docker Compose, VS Code Dev Container 및 Jupyter 개발 환경**을 목적별로 구성하고 관리합니다.
->
-> 특히 Intel Iris Xe 환경에서는 Level Zero, OpenCL, oneAPI/SYCL 기반 XPU 가속 환경을 구성하고, 프레임워크별 하드웨어 인식과 연산 동작을 검증합니다.
+> Intel Iris Xe XPU와 NVIDIA CUDA GPU를 대상으로 PyTorch, TensorFlow, OpenVINO 등의 프레임워크를 실행할 수 있도록 **Dockerfile, Docker Compose, VS Code Dev Container 및 Jupyter 개발 환경**을 목적별로 구성하고 관리합니다.특히 Intel Iris Xe 환경에서는 Level Zero, OpenCL, oneAPI/SYCL 기반 XPU 가속 환경을 구성하고, 프레임워크별 하드웨어 인식과 연산 동작을 검증합니다.
 >
 > 이전 README는 [`README-v0.1.0.md`](README-v0.1.0.md)에 보관합니다.
 
 ---
 
-## PyTorch & TensorFlow Docker Dev Environment
+## PyTorch & TensorFlow Docker Dev Environment for Intel XPU(GPU)
 
-> 아래 내용은 저장소의 여러 개발 환경 중 **Intel Iris Xe XPU 기반 PyTorch/TensorFlow Docker Dev Environment**의 구성, 라이브러리 사양 및 실제 검증 결과를 상세히 기록합니다.
+>
+> [`README-v0.1.0.md`](README-v0.1.0.md) 에 비해 수정된 내용은 TensorFlow 연산을 수행하기 위한 컴파일러·연산·런타임·드라이버 계층 업데이트 입니다.
+>
+> 아래에 구성, 라이브러리 사양 및 실제 검증 결과를 상세히 기록합니다.
+> ## 라이브러리 구성과 역할 
+> 
 >
 > ## 1. 검증 하드웨어
 >
