@@ -315,8 +315,6 @@
 >> ### 6.4 추가/수정된 파일
 >>
 >> ```text
->> Dockerfile.intel-irisxe-framework
->> docker-compose-wsl-intel-irisxe-framework.yml
 >> Dockerfile.intel-opencl-levelzero-xpu-tensorflow
 >> Dockerfile.intel-opencl-levelzero-xpu-tensorflow-jupyter
 >> docker-compose-wsl-intel-xpu-tensorflow.yml
@@ -324,6 +322,3 @@
 >> .env.example
 >> ```
 >>
->> `Dockerfile.intel-irisxe-framework`는 PyTorch/TensorFlow 공통 Intel Iris Xe 개발 환경입니다.
->>
->> `docker-compose-wsl-intel-irisxe-framework.yml` 실행 시 `.env`의 `FRAMEWORK=pytorch|tensorflow` 설정에 따라 사용할 framework가 결정됩니다.
