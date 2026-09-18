@@ -21,8 +21,26 @@
 > [`README-v0.1.0.md`](README-v0.1.0.md) 에 비해 수정된 내용은 TensorFlow 연산을 수행하기 위한 컴파일러·연산·런타임·드라이버 계층 업데이트 입니다.
 >
 > 아래에 구성, 라이브러리 사양 및 실제 검증 결과를 상세히 기록합니다.
-> ## 라이브러리 구성과 역할 
-> 
+> ## 라이브러리 구성과 역할
+>
+> ```text
+> TensorFlow
+>     ↓
+> Intel Extension for TensorFlow (ITEX)
+>     ↓
+> SYCL / oneAPI
+>     ├─ libsycl.so.8              (XPU 연산 실행 Runtime)
+>     ├─ oneMKL
+>     │   └─ libmkl_sycl_blas.so.5 (XPU 수치 연산)
+>     └─ UMF
+>         └─ libumf.so.0           (CPU/XPU 메모리 관리)
+>     ↓
+> GPU Runtime
+>     ├─ Level Zero                (Intel GPU 저수준 제어 및 연산 실행)
+>     └─ OpenCL (NEO)              (Intel GPU OpenCL 연산 실행)
+>     ↓
+> Intel Iris Xe GPU                (실제 연산을 수행하는 GPU 하드웨어)
+> ```
 >
 > ## 1. 검증 하드웨어
 >
