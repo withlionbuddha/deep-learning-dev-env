@@ -2,6 +2,7 @@ version: "3.9"
 
 services:
   wsl-intel-levelzero-xpu-dev:
+    container_name: ${COMPOSE_PROJECT_NAME}-wsl-intel-levelzero-xpu-dev
     profiles: ["wsl-intel-levelzero-xpu"]
     image: intel-levelzero-xpu:latest
     build:
