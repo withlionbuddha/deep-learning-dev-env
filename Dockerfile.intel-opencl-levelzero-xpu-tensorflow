@@ -65,8 +65,7 @@ RUN SYCL_LIB="$(find /opt/intel/oneapi \( -type f -o -type l \) -name 'libsycl.s
 ENV PATH=/opt/intel/oneapi/compiler/2025.0/bin:$PATH \
     LD_LIBRARY_PATH=/opt/intel/oneapi/compiler/2025.0/lib:/opt/intel/oneapi/mkl/2025.0/lib:/opt/intel/oneapi/mkl/2025.0/lib/intel64:/opt/intel/oneapi/umf/0.9/lib:/usr/lib/wsl/lib \
     TF_ENABLE_ONEDNN_OPTS=1 \
-    UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS=1 \
-    DEEP_LEARNING_FRAMEWORK=tensorflow
+    UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS=1
 
 RUN useradd -m -s /bin/bash dev \
  && echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
