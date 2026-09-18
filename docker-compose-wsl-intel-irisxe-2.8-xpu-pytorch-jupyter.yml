@@ -3,8 +3,9 @@ version: "3.9"
 services: 
   wsl-intel-irisxe-2.8-xpu-pytorch-jupyter-dev:
     profiles: ["wsl-intel-irisxe-2.8-xpu-pytoch-jupyter"]
+    image: intel-irisxe-2.8-levelzero-xpu-pytorch-jupyter:latest
     ports:
-      - "${PYTORCH_XPU_HOST_PORT}:8888"
+      - "${JUPYTER_HOST_PORT}:8888"
     build:
         context: .
         dockerfile: Dockerfile.intel-irisxe-2.8-levelzero-xpu-pytorch-jupyter
