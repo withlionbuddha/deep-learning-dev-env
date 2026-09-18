@@ -2,6 +2,7 @@ version: "3.9"
 
 services: 
   wsl-intel-xpu-pytorch-jupyter-dev:
+    container_name: ${COMPOSE_PROJECT_NAME}-wsl-intel-xpu-pytorch-jupyter-dev
     profiles: ["wsl-intel-xpu-pytoch-jupyter"]
     image: intel-levelzero-xpu-pytorch-jupyter:latest
     ports:
