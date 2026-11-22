@@ -4,8 +4,8 @@
   "dockerComposeFile": [
     "../../docker-compose-wsl-intel-irisxe-2.8-xpu-pytorch-jupyter.yml"
   ],
-  "workspaceFolder": "/home/workspace",
   "overrideCommand": true,
+  "workspaceFolder": "/home/workspace",
   "forwardPorts": [8888],
   "postStartCommand": [
     "sh",

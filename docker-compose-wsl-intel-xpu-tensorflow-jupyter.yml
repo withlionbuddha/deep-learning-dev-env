@@ -27,6 +27,7 @@ services:
         target: /home/workspace/ai-compute-benchmark
     environment:
       PYTHONUNBUFFERED: "1"
+      PYTHONPATH: "/home/workspace/${PROJECT_NAME}:/home/workspace/ai-compute-benchmark"
       TF_ENABLE_ONEDNN_OPTS: "1"
       UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS: "1"
     working_dir: /home/workspace

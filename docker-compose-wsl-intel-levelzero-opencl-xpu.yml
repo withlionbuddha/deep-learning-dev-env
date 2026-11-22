@@ -26,6 +26,7 @@ services:
         target : /home/workspace/ai-compute-benchmark
     environment:
       PYTHONUNBUFFERED: "1"
+      PYTHONPATH: "/home/workspace/${PROJECT_NAME}:/home/workspace/ai-compute-benchmark"
       LD_LIBRARY_PATH: "/usr/lib/wsl/lib"
       OMP_NUM_THREADS: "4"
       OPENBLAS_NUM_THREADS: "4"
